@@ -11,13 +11,20 @@ import (
 
 func main() {
 	router := routing.New()
-	router.Get("/<foobar>/ping", adapt(func(ctx *routing.Context, args struct {
+	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
 		Foobar string `path:"foobar"`
 		Brand  string `header:"brand"`
 	}) error {
 		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
 		return nil
 	}))
+
+	router.Get("/not-adapted/<foobar>", func(ctx *routing.Context) error {
+		foobar := ctx.Param("foobar")
+		brand := ctx.Request.Header.Peek("brand")
+		fmt.Printf("Foobar: '%s', Brand: '%s'\n", foobar, brand)
+		return nil
+	})
 
 	port := "8765"
 	// Serve Start
