@@ -12,10 +12,10 @@ import (
 func main() {
 	router := routing.New()
 	router.Get("/<foobar>/ping", adapt(func(ctx *routing.Context, args struct {
-		foobar string `path:"foobar"`
-		brand  string `header:"brand"`
+		Foobar string `path:"foobar"`
+		Brand  string `header:"brand"`
 	}) error {
-		fmt.Printf("#%v\n", args)
+		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
 		return nil
 	}))
 
@@ -57,10 +57,11 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 			args.Elem().Field(idx).Set(reflect.ValueOf(ctx.Param(key)))
 		}
 		for key, idx := range headerParams {
-			args.Elem().Field(idx).Set(reflect.ValueOf(ctx.Param(key)))
+			args.Elem().Field(idx).Set(reflect.ValueOf(string(ctx.Request.Header.Peek(key))))
 		}
 
-		return v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
+		err, _ := v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
+		return err
 	}
 }
 
