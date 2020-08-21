@@ -35,7 +35,7 @@ func main() {
 }
 
 var ctxType = reflect.TypeOf(&routing.Context{})
-var errType = reflect.TypeOf(*new(error))
+var errType = reflect.TypeOf(new(error)).Elem()
 
 func adapt(fn interface{}) func(ctx *routing.Context) error {
 	t := reflect.TypeOf(fn)
@@ -57,9 +57,9 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		log.Fatal("received function must have a single return value!")
 	}
 
-	// if t.Out(0) != errType {
-	// log.Fatal("first return value must be of type error")
-	// }
+	if t.Out(0) != errType {
+		log.Fatal("first return value must be of type error")
+	}
 
 	argsType := t.In(1)
 	if argsType.Kind() != reflect.Struct {
