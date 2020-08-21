@@ -9,6 +9,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type ValidationError struct{
+  error
+}
+
+func NewValidationError(msg string, args ...interface{}) ValidationError {
+  return ValidationError{
+    error: fmt.Errorf(msg, args...),
+  }
+}
+
 func main() {
 	router := routing.New()
 	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
@@ -69,11 +79,21 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 	pathParams, headerParams := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
-		for key, idx := range pathParams {
-			args.Elem().Field(idx).Set(reflect.ValueOf(ctx.Param(key)))
+    for key, idx := range pathParams {
+      param := ctx.Param(key)
+      if param == "" {
+        return NewValidationError("path param '%s' is empty", key)
+      }
+
+			args.Elem().Field(idx).Set(reflect.ValueOf(param))
 		}
 		for key, idx := range headerParams {
-			args.Elem().Field(idx).Set(reflect.ValueOf(string(ctx.Request.Header.Peek(key))))
+      param := string(ctx.Request.Header.Peek(key))
+      if param == "" {
+        return NewValidationError("required header param '%s' is empty", key)
+      }
+
+			args.Elem().Field(idx).Set(reflect.ValueOf(param))
 		}
 
 		err, _ := v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
