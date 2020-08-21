@@ -35,6 +35,7 @@ func main() {
 }
 
 var ctxType = reflect.TypeOf(&routing.Context{})
+var errType = reflect.TypeOf(new(error))
 
 func adapt(fn interface{}) func(ctx *routing.Context) error {
 	t := reflect.TypeOf(fn)
@@ -49,6 +50,14 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 	}
 
 	if t.In(0) != ctxType {
+		log.Fatal("first argument must be of type *routing.Context!")
+	}
+
+	if t.NumOut() != 1 {
+		log.Fatal("received function return value must be only an error!")
+	}
+
+	if t.Out(0) != errType {
 		log.Fatal("first argument must be of type *routing.Context!")
 	}
 
