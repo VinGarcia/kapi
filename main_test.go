@@ -8,39 +8,34 @@ import (
 )
 
 var err error
-var foobar string
-var brand string
+var pathParam string
+var headerParam string
 
 var weight = 10
 
 func BenchmarkAdapter(b *testing.B) {
 	adapted := adapt(func(ctx *routing.Context, args struct {
-		Foobar string `path:"foobar"`
-		Brand  string `header:"brand"`
+		PathParam   string `path:"path-param"`
+		HeaderParam string `header:"header-param"`
 	}) error {
-		foobar = args.Foobar
-		brand = args.Brand
+		pathParam = args.PathParam
+		headerParam = args.HeaderParam
 		for i := 0; i < weight; i++ {
-			brand = brand + "0"
+			headerParam = headerParam + "0"
 		}
 		return nil
 	})
 
 	notAdapted := func(ctx *routing.Context) error {
-		foobar = ctx.Param("foobar")
-		brand = string(ctx.Request.Header.Peek("brand"))
+		pathParam = ctx.Param("path-param")
+		headerParam = string(ctx.Request.Header.Peek("header-param"))
 		for i := 0; i < weight; i++ {
-			brand = brand + "0"
+			headerParam = headerParam + "0"
 		}
 		return nil
 	}
 
-	ctx := &routing.Context{
-		RequestCtx: &fasthttp.RequestCtx{},
-	}
-	ctx.SetParam("foobar", "teste")
-	ctx.Request.Header.Set("brand", "dito-teste")
-
+	ctx := buildContext()
 	b.Run("adapted handler", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			err = adapted(ctx)
@@ -52,4 +47,33 @@ func BenchmarkAdapter(b *testing.B) {
 			err = notAdapted(ctx)
 		}
 	})
+}
+
+func TestAdapt(t *testing.T) {
+	t.Run("should parse 1 param from path correctly", func(t *testing.T) {
+		ctx := buildContext()
+
+		var p string
+		err := adapt(func(ctx *routing.Context, args struct {
+			P string `path:"path-param"`
+		}) error {
+			p = args.P
+			return nil
+		})(ctx)
+		if err != nil {
+			t.Fatalf("unexpected error received: %s", err.Error())
+		}
+		if p != "fake-path-param" {
+			t.Fatalf("expected path param was not received, got %s", p)
+		}
+	})
+}
+
+func buildContext() *routing.Context {
+	ctx := &routing.Context{
+		RequestCtx: &fasthttp.RequestCtx{},
+	}
+	ctx.SetParam("path-param", "fake-path-param")
+	ctx.Request.Header.Set("header-param", "fake-header-param")
+	return ctx
 }
