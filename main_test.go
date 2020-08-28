@@ -68,6 +68,25 @@ func TestAdapt(t *testing.T) {
 		}
 	})
 
+	t.Run("should report error when path param is empty", func(t *testing.T) {
+		ctx := buildFakeContext()
+		ctx.SetParam("path-param", "")
+
+		var p string
+		err := adapt(func(ctx *routing.Context, args struct {
+			P string `path:"path-param"`
+		}) error {
+			p = "reached this line"
+			return nil
+		})(ctx)
+		if ErrorCode(err) != MissingRequiredParamError {
+			t.Fatalf("expected MissingRequiredParamError bug got: %T", err)
+		}
+		if p == "reached this line" {
+			t.Fatalf("the callback should not have been executed!")
+		}
+	})
+
 	t.Run("should parse 1 param from the header correctly", func(t *testing.T) {
 		ctx := buildFakeContext()
 
