@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
 	"github.com/valyala/fasthttp"
@@ -23,8 +24,8 @@ func main() {
 	router := routing.New()
 	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
 		Foobar string `path:"foobar"`
-		Brand  string `header:"brand"`
-		Testim string `query:"testimvalue"`
+		Brand  string `header:"brand,optional"`
+		Testim string `query:"testimvalue,required"`
 	}) error {
 		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
 		return nil
@@ -80,29 +81,29 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 	pathParams, headerParams, queryParams := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
-		for key, idx := range pathParams {
+		for key, info := range pathParams {
 			param := ctx.Param(key)
-			if param == "" {
+			if param == "" && info.Required {
 				return NewValidationError("path param '%s' is empty", key)
 			}
 
-			args.Elem().Field(idx).Set(reflect.ValueOf(param))
+			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
 		}
-		for key, idx := range headerParams {
+		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
-			if param == "" {
+			if param == "" && info.Required {
 				return NewValidationError("required header param '%s' is empty", key)
 			}
 
-			args.Elem().Field(idx).Set(reflect.ValueOf(param))
+			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
 		}
-		for key, idx := range queryParams {
+		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
-			if param == "" {
+			if param == "" && info.Required {
 				return NewValidationError("required header param '%s' is empty", key)
 			}
 
-			args.Elem().Field(idx).Set(reflect.ValueOf(param))
+			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
 		}
 
 		err, _ := v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
@@ -110,34 +111,70 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 	}
 }
 
+type tagInfo struct {
+	Idx      int
+	Required bool
+}
+
 // This function collects only the names
 // that will be used from the type
 // this should save several calls to `Field(i).Tag.Get("foo")`
 // which might improve the performance by a lot.
-func getTagNames(t reflect.Type) (map[string]int, map[string]int, map[string]int) {
-	pathParams := map[string]int{}
-	headerParams := map[string]int{}
-	queryParams := map[string]int{}
+func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[string]tagInfo) {
+	pathParams := map[string]tagInfo{}
+	headerParams := map[string]tagInfo{}
+	queryParams := map[string]tagInfo{}
+
 	for i := 0; i < t.NumField(); i++ {
-		key := t.Field(i).Tag.Get("path")
+		opts := strings.Split(t.Field(i).Tag.Get("path"), ",")
+
+		key := opts[0]
 		if key == "" {
 			continue
 		}
-		pathParams[key] = i
+
+		pathParams[key] = tagInfo{
+			Idx:      i,
+			Required: true,
+		}
 	}
+
 	for i := 0; i < t.NumField(); i++ {
-		key := t.Field(i).Tag.Get("header")
+		opts := strings.Split(t.Field(i).Tag.Get("header"), ",")
+
+		key := opts[0]
 		if key == "" {
 			continue
 		}
-		headerParams[key] = i
+
+		required := true
+		if len(opts) > 1 && opts[1] == "optional" {
+			required = false
+		}
+
+		headerParams[key] = tagInfo{
+			Idx:      i,
+			Required: required,
+		}
 	}
+
 	for i := 0; i < t.NumField(); i++ {
-		key := t.Field(i).Tag.Get("query")
+		opts := strings.Split(t.Field(i).Tag.Get("query"), ",")
+		key := opts[0]
 		if key == "" {
 			continue
 		}
-		queryParams[key] = i
+
+		required := false
+		if len(opts) > 1 && opts[1] == "required" {
+			required = true
+		}
+
+		queryParams[key] = tagInfo{
+			Idx:      i,
+			Required: required,
+		}
 	}
+
 	return pathParams, headerParams, queryParams
 }
