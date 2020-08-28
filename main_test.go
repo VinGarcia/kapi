@@ -68,21 +68,39 @@ func TestAdapt(t *testing.T) {
 		}
 	})
 
-	t.Run("should parse 1 param from query correctly", func(t *testing.T) {
+	t.Run("should parse 1 param from the header correctly", func(t *testing.T) {
 		ctx := buildContext()
 
-		var q string
+		var p string
 		err := adapt(func(ctx *routing.Context, args struct {
-			Q string `query:"query-param"`
+			P string `header:"header-param"`
 		}) error {
-			q = args.Q
+			p = args.P
 			return nil
 		})(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error received: %s", err.Error())
 		}
-		if q != "fake-query-param" {
-			t.Fatalf("expected query param was not received, got %s", q)
+		if p != "fake-header-param" {
+			t.Fatalf("expected path param was not received, got %s", p)
+		}
+	})
+
+	t.Run("should parse 1 param from query correctly", func(t *testing.T) {
+		ctx := buildContext()
+
+		var p string
+		err := adapt(func(ctx *routing.Context, args struct {
+			P string `query:"query-param"`
+		}) error {
+			p = args.P
+			return nil
+		})(ctx)
+		if err != nil {
+			t.Fatalf("unexpected error received: %s", err.Error())
+		}
+		if p != "fake-query-param" {
+			t.Fatalf("expected query param was not received, got %s", p)
 		}
 	})
 }
