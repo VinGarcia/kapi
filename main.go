@@ -9,14 +9,14 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type ValidationError struct{
-  error
+type ValidationError struct {
+	error
 }
 
 func NewValidationError(msg string, args ...interface{}) ValidationError {
-  return ValidationError{
-    error: fmt.Errorf(msg, args...),
-  }
+	return ValidationError{
+		error: fmt.Errorf(msg, args...),
+	}
 }
 
 func main() {
@@ -24,6 +24,7 @@ func main() {
 	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
 		Foobar string `path:"foobar"`
 		Brand  string `header:"brand"`
+		Testim string `query:"testimvalue"`
 	}) error {
 		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
 		return nil
@@ -76,22 +77,30 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		log.Fatal("second argument must a struct!")
 	}
 
-	pathParams, headerParams := getTagNames(argsType)
+	pathParams, headerParams, queryParams := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
-    for key, idx := range pathParams {
-      param := ctx.Param(key)
-      if param == "" {
-        return NewValidationError("path param '%s' is empty", key)
-      }
+		for key, idx := range pathParams {
+			param := ctx.Param(key)
+			if param == "" {
+				return NewValidationError("path param '%s' is empty", key)
+			}
 
 			args.Elem().Field(idx).Set(reflect.ValueOf(param))
 		}
 		for key, idx := range headerParams {
-      param := string(ctx.Request.Header.Peek(key))
-      if param == "" {
-        return NewValidationError("required header param '%s' is empty", key)
-      }
+			param := string(ctx.Request.Header.Peek(key))
+			if param == "" {
+				return NewValidationError("required header param '%s' is empty", key)
+			}
+
+			args.Elem().Field(idx).Set(reflect.ValueOf(param))
+		}
+		for key, idx := range queryParams {
+			param := string(ctx.Request.URI().QueryArgs().Peek(key))
+			if param == "" {
+				return NewValidationError("required header param '%s' is empty", key)
+			}
 
 			args.Elem().Field(idx).Set(reflect.ValueOf(param))
 		}
@@ -105,9 +114,10 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 // that will be used from the type
 // this should save several calls to `Field(i).Tag.Get("foo")`
 // which might improve the performance by a lot.
-func getTagNames(t reflect.Type) (map[string]int, map[string]int) {
+func getTagNames(t reflect.Type) (map[string]int, map[string]int, map[string]int) {
 	pathParams := map[string]int{}
 	headerParams := map[string]int{}
+	queryParams := map[string]int{}
 	for i := 0; i < t.NumField(); i++ {
 		key := t.Field(i).Tag.Get("path")
 		if key == "" {
@@ -122,5 +132,12 @@ func getTagNames(t reflect.Type) (map[string]int, map[string]int) {
 		}
 		headerParams[key] = i
 	}
-	return pathParams, headerParams
+	for i := 0; i < t.NumField(); i++ {
+		key := t.Field(i).Tag.Get("query")
+		if key == "" {
+			continue
+		}
+		queryParams[key] = i
+	}
+	return pathParams, headerParams, queryParams
 }
