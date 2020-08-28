@@ -12,12 +12,41 @@ import (
 
 type ValidationError struct {
 	error
+	Code ErrCode
 }
 
 func NewValidationError(msg string, args ...interface{}) ValidationError {
 	return ValidationError{
 		error: fmt.Errorf(msg, args...),
 	}
+}
+
+func NewMissingRequiredParamError(msg string, args ...interface{}) ValidationError {
+	return ValidationError{
+		error: fmt.Errorf(msg, args...),
+		Code:  MissingRequiredParamError,
+	}
+}
+
+type ErrCode uint
+
+const (
+	NoError ErrCode = iota
+	UnexpectedError
+	MissingRequiredParamError
+)
+
+func ErrorCode(err error) ErrCode {
+	if err == nil {
+		return NoError
+	}
+
+	validationError, ok := err.(ValidationError)
+	if !ok {
+		return UnexpectedError
+	}
+
+	return validationError.Code
 }
 
 func main() {
@@ -84,7 +113,7 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range pathParams {
 			param := ctx.Param(key)
 			if param == "" && info.Required {
-				return NewValidationError("path param '%s' is empty", key)
+				return NewMissingRequiredParamError("path param '%s' is empty", key)
 			}
 
 			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
@@ -92,7 +121,7 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
 			if param == "" && info.Required {
-				return NewValidationError("required header param '%s' is empty", key)
+				return NewMissingRequiredParamError("required header param '%s' is empty", key)
 			}
 
 			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
@@ -100,7 +129,7 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
 			if param == "" && info.Required {
-				return NewValidationError("required header param '%s' is empty", key)
+				return NewMissingRequiredParamError("required query param '%s' is empty", key)
 			}
 
 			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
