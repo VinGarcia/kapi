@@ -35,7 +35,7 @@ func BenchmarkAdapter(b *testing.B) {
 		return nil
 	}
 
-	ctx := buildContext()
+	ctx := buildFakeContext()
 	b.Run("adapted handler", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			err = adapted(ctx)
@@ -51,7 +51,7 @@ func BenchmarkAdapter(b *testing.B) {
 
 func TestAdapt(t *testing.T) {
 	t.Run("should parse 1 param from path correctly", func(t *testing.T) {
-		ctx := buildContext()
+		ctx := buildFakeContext()
 
 		var p string
 		err := adapt(func(ctx *routing.Context, args struct {
@@ -69,7 +69,7 @@ func TestAdapt(t *testing.T) {
 	})
 
 	t.Run("should parse 1 param from the header correctly", func(t *testing.T) {
-		ctx := buildContext()
+		ctx := buildFakeContext()
 
 		var p string
 		err := adapt(func(ctx *routing.Context, args struct {
@@ -87,7 +87,7 @@ func TestAdapt(t *testing.T) {
 	})
 
 	t.Run("should parse 1 param from query correctly", func(t *testing.T) {
-		ctx := buildContext()
+		ctx := buildFakeContext()
 
 		var p string
 		err := adapt(func(ctx *routing.Context, args struct {
@@ -105,7 +105,7 @@ func TestAdapt(t *testing.T) {
 	})
 }
 
-func buildContext() *routing.Context {
+func buildFakeContext() *routing.Context {
 	ctx := &routing.Context{
 		RequestCtx: &fasthttp.RequestCtx{},
 	}
