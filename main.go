@@ -49,20 +49,38 @@ func ErrorCode(err error) ErrCode {
 	return validationError.Code
 }
 
+type Foo struct{
+  ID int `json:"id"`
+  Name string `json:"name"`
+}
+
 func main() {
 	router := routing.New()
 	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
 		Foobar string `path:"foobar"`
 		Brand  string `header:"brand,optional"`
-		Testim string `query:"testimvalue,required"`
+		Qparam string `query:"qparam,required"`
+    Body Foo
 	}) error {
+    user := args.Body
 		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
+
 		return nil
 	}))
 
-	router.Get("/not-adapted/<foobar>", func(ctx *routing.Context) error {
-		foobar := ctx.Param("foobar")
+	router.Get("/not-adapted/<id>", func(ctx *routing.Context) error {
+		id, err := strconv.Atoi(ctx.Param("id"))
+    if err != nil {
+      fmt.Println("deu ruim")
+      return err
+    }
+
 		brand := ctx.Request.Header.Peek("brand")
+    if brand == "" {
+      fmt.Println("deu ruim de novo")
+      return fmt.Errorf("ta faltando a brand!")
+    }
+    
 		fmt.Printf("Foobar: '%s', Brand: '%s'\n", foobar, brand)
 		return nil
 	})
@@ -107,9 +125,23 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		log.Fatal("second argument must a struct!")
 	}
 
+  bodyInfo := getBodyInfo()
 	pathParams, headerParams, queryParams := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
+
+    if bodyInfo != nil {
+      param :=  reflect.New(argsType.Field(bodyInfo.Idx))
+      err := json.Unmarshal(ctx.PostBody(), &param.Interface())
+      if err != nil {
+        return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+          "could not parse body as JSON: %s", err.Error(),
+        ))
+      }
+
+			args.Elem().Field(bodyInfo.Idx).Set(reflect.ValueOf(param))
+    }
+
 		for key, info := range pathParams {
 			param := ctx.Param(key)
 			if param == "" && info.Required {
@@ -143,6 +175,20 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 type tagInfo struct {
 	Idx      int
 	Required bool
+}
+
+func getBodyInfo(t reflect.Type) *tagInfo {
+	for i := 0; i < t.NumField(); i++ {
+		name := t.Field(i).Name()
+    if name == "JSONBody" {
+      return tagInfo{
+        Idx: i,
+        Required: true,
+      }
+    }
+  }
+
+  return nil
 }
 
 // This function collects only the names
