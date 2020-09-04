@@ -137,10 +137,9 @@ func TestAdapt(t *testing.T) {
 			t.Fatalf("unexpected error received: %s", err.Error())
 		}
 		if p.ID != 32 {
-			t.Fatalf("expected body id to equal 32, but got %s", p)
+			t.Fatalf("expected body id to equal 32, but got %d", p.ID)
 		}
 		if p.Name != "John Doe" {
-			t.Fatalf("expected query param was not received, got %s", p.ID)
 			t.Fatalf("expected body name to equal 'John Doe', but got %s", p.Name)
 		}
 	})
@@ -151,7 +150,7 @@ func buildFakeContext() *routing.Context {
 		RequestCtx: &fasthttp.RequestCtx{},
 	}
 	ctx.SetParam("path-param", "fake-path-param")
-  ctx.SetBody([]byte(`{"id":32, "name":"John Doe"}`))
+	ctx.Request.SetBody([]byte(`{"id":32,"name":"John Doe"}`))
 	ctx.Request.Header.Set("header-param", "fake-header-param")
 	ctx.Request.URI().QueryArgs().Set("query-param", "fake-query-param")
 	return ctx

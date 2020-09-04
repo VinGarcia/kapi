@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
@@ -49,39 +52,42 @@ func ErrorCode(err error) ErrCode {
 	return validationError.Code
 }
 
-type Foo struct{
-  ID int `json:"id"`
-  Name string `json:"name"`
+type Foo struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func main() {
 	router := routing.New()
-	router.Get("/adapted/<foobar>", adapt(func(ctx *routing.Context, args struct {
-		Foobar string `path:"foobar"`
-		Brand  string `header:"brand,optional"`
-		Qparam string `query:"qparam,required"`
-    Body Foo
+	router.Post("/adapted/<id>", adapt(func(ctx *routing.Context, args struct {
+		ID       string `path:"id"`
+		Brand    string `header:"brand,optional"`
+		Qparam   string `query:"qparam,required"`
+		JSONBody Foo
 	}) error {
-    user := args.Body
-		fmt.Printf("Foobar: '%s', Brand: '%s'\n", args.Foobar, args.Brand)
+		fmt.Printf("ID: '%s', Brand: '%s'\n", args.ID, args.Brand)
+		fmt.Printf("Query: '%s', Body: '%#v'\n", args.Qparam, args.JSONBody)
+
+		body, _ := json.Marshal(args)
+		ctx.SetBody(body)
 
 		return nil
 	}))
 
-	router.Get("/not-adapted/<id>", func(ctx *routing.Context) error {
+	router.Post("/not-adapted/<id>", func(ctx *routing.Context) error {
 		id, err := strconv.Atoi(ctx.Param("id"))
-    if err != nil {
-      fmt.Println("deu ruim")
-      return err
-    }
+		if err != nil {
+			fmt.Println("deu ruim")
+			return err
+		}
 
-		brand := ctx.Request.Header.Peek("brand")
-    if brand == "" {
-      fmt.Println("deu ruim de novo")
-      return fmt.Errorf("ta faltando a brand!")
-    }
-    
-		fmt.Printf("Foobar: '%s', Brand: '%s'\n", foobar, brand)
+		brand := string(ctx.Request.Header.Peek("brand"))
+		if brand == "" {
+			fmt.Println("deu ruim de novo")
+			return fmt.Errorf("ta faltando a brand!")
+		}
+
+		fmt.Printf("ID: '%d', Brand: '%s'\n", id, brand)
 		return nil
 	})
 
@@ -125,22 +131,22 @@ func adapt(fn interface{}) func(ctx *routing.Context) error {
 		log.Fatal("second argument must a struct!")
 	}
 
-  bodyInfo := getBodyInfo()
+	bodyInfo := getBodyInfo(argsType)
 	pathParams, headerParams, queryParams := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
 
-    if bodyInfo != nil {
-      param :=  reflect.New(argsType.Field(bodyInfo.Idx))
-      err := json.Unmarshal(ctx.PostBody(), &param.Interface())
-      if err != nil {
-        return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-          "could not parse body as JSON: %s", err.Error(),
-        ))
-      }
+		if bodyInfo != nil {
+			param := reflect.New(argsType.Field(bodyInfo.Idx).Type)
+			err := json.Unmarshal(ctx.PostBody(), param.Interface())
+			if err != nil {
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"could not parse body as JSON: %s", err.Error(),
+				))
+			}
 
-			args.Elem().Field(bodyInfo.Idx).Set(reflect.ValueOf(param))
-    }
+			args.Elem().Field(bodyInfo.Idx).Set(param.Elem())
+		}
 
 		for key, info := range pathParams {
 			param := ctx.Param(key)
@@ -179,16 +185,16 @@ type tagInfo struct {
 
 func getBodyInfo(t reflect.Type) *tagInfo {
 	for i := 0; i < t.NumField(); i++ {
-		name := t.Field(i).Name()
-    if name == "JSONBody" {
-      return tagInfo{
-        Idx: i,
-        Required: true,
-      }
-    }
-  }
+		name := t.Field(i).Name
+		if name == "JSONBody" {
+			return &tagInfo{
+				Idx:      i,
+				Required: true,
+			}
+		}
+	}
 
-  return nil
+	return nil
 }
 
 // This function collects only the names
