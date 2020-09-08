@@ -5,6 +5,7 @@ import (
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
 	"github.com/valyala/fasthttp"
+	"gotest.tools/assert"
 )
 
 type Foo struct {
@@ -121,6 +122,240 @@ func TestAdapt(t *testing.T) {
 				},
 				expectedValue: "John Doe",
 			},
+
+			{
+				desc: "should parse an integer correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam int `path:"path-param"`
+					HParam int `header:"header-param"`
+					QParam int `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam int `path:"path-param"`
+					HParam int `header:"header-param"`
+					QParam int `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int8 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam int8 `path:"path-param"`
+					HParam int8 `header:"header-param"`
+					QParam int8 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam int8 `path:"path-param"`
+					HParam int8 `header:"header-param"`
+					QParam int8 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int16 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam int16 `path:"path-param"`
+					HParam int16 `header:"header-param"`
+					QParam int16 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam int16 `path:"path-param"`
+					HParam int16 `header:"header-param"`
+					QParam int16 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int32 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam int32 `path:"path-param"`
+					HParam int32 `header:"header-param"`
+					QParam int32 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam int32 `path:"path-param"`
+					HParam int32 `header:"header-param"`
+					QParam int32 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int64 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam int64 `path:"path-param"`
+					HParam int64 `header:"header-param"`
+					QParam int64 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam int64 `path:"path-param"`
+					HParam int64 `header:"header-param"`
+					QParam int64 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int64 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam uint8 `path:"path-param"`
+					HParam uint8 `header:"header-param"`
+					QParam uint8 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam uint8 `path:"path-param"`
+					HParam uint8 `header:"header-param"`
+					QParam uint8 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int64 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam uint16 `path:"path-param"`
+					HParam uint16 `header:"header-param"`
+					QParam uint16 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam uint16 `path:"path-param"`
+					HParam uint16 `header:"header-param"`
+					QParam uint16 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int64 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam uint32 `path:"path-param"`
+					HParam uint32 `header:"header-param"`
+					QParam uint32 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam uint32 `path:"path-param"`
+					HParam uint32 `header:"header-param"`
+					QParam uint32 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
+
+			{
+				desc: "should parse an int64 correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam:   "42",
+					HeaderParam: "43",
+					QueryParam:  "44",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					PParam uint64 `path:"path-param"`
+					HParam uint64 `header:"header-param"`
+					QParam uint64 `query:"query-param"`
+				}) error {
+					returnValue = args
+					return nil
+				},
+				expectedValue: struct {
+					PParam uint64 `path:"path-param"`
+					HParam uint64 `header:"header-param"`
+					QParam uint64 `query:"query-param"`
+				}{
+					PParam: 42,
+					HParam: 43,
+					QParam: 44,
+				},
+			},
 		}
 
 		for _, test := range tests {
@@ -131,9 +366,8 @@ func TestAdapt(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error received: %s", err.Error())
 				}
-				if returnValue != test.expectedValue {
-					t.Fatalf("expected param was not received, got %s", returnValue)
-				}
+
+				assert.Equal(t, test.expectedValue, returnValue)
 			})
 		}
 	})

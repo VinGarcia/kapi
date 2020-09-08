@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
@@ -105,7 +106,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 				return NewMissingRequiredParamError("path param '%s' is empty", key)
 			}
 
-			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
+			v, err := decodeType(info.Kind, param)
+			if err != nil {
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"could not convert path param to %s: %s", reflect.Int, err.Error(),
+				))
+			}
+
+			args.Elem().Field(info.Idx).Set(v)
 		}
 		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
@@ -113,7 +121,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 				return NewMissingRequiredParamError("required header param '%s' is empty", key)
 			}
 
-			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
+			v, err := decodeType(info.Kind, param)
+			if err != nil {
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"could not convert path param to %s: %s", reflect.Int, err.Error(),
+				))
+			}
+
+			args.Elem().Field(info.Idx).Set(v)
 		}
 		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
@@ -121,7 +136,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 				return NewMissingRequiredParamError("required query param '%s' is empty", key)
 			}
 
-			args.Elem().Field(info.Idx).Set(reflect.ValueOf(param))
+			v, err := decodeType(info.Kind, param)
+			if err != nil {
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"could not convert path param to %s: %s", reflect.Int, err.Error(),
+				))
+			}
+
+			args.Elem().Field(info.Idx).Set(v)
 		}
 
 		err, _ := v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
@@ -129,9 +151,48 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 	}
 }
 
+func decodeType(kind reflect.Kind, v string) (reflect.Value, error) {
+	switch kind {
+	case reflect.Int:
+		i, err := strconv.Atoi(v)
+		return reflect.ValueOf(i), err
+	case reflect.Int8:
+		i, err := strconv.ParseInt(v, 10, 8)
+		return reflect.ValueOf(int8(i)), err
+	case reflect.Int16:
+		i, err := strconv.ParseInt(v, 10, 16)
+		return reflect.ValueOf(int16(i)), err
+	case reflect.Int32:
+		i, err := strconv.ParseInt(v, 10, 32)
+		return reflect.ValueOf(int32(i)), err
+	case reflect.Int64:
+		i, err := strconv.ParseInt(v, 10, 64)
+		return reflect.ValueOf(int64(i)), err
+
+	case reflect.Uint:
+		i, err := strconv.Atoi(v)
+		return reflect.ValueOf(uint(i)), err
+	case reflect.Uint8:
+		i, err := strconv.ParseUint(v, 10, 8)
+		return reflect.ValueOf(uint8(i)), err
+	case reflect.Uint16:
+		i, err := strconv.ParseUint(v, 10, 16)
+		return reflect.ValueOf(uint16(i)), err
+	case reflect.Uint32:
+		i, err := strconv.ParseUint(v, 10, 32)
+		return reflect.ValueOf(uint32(i)), err
+	case reflect.Uint64:
+		i, err := strconv.ParseUint(v, 10, 64)
+		return reflect.ValueOf(uint64(i)), err
+	}
+
+	return reflect.ValueOf(v), nil
+}
+
 type tagInfo struct {
 	Idx      int
 	Required bool
+	Kind     reflect.Kind
 }
 
 func getBodyInfo(t reflect.Type) *tagInfo {
@@ -158,7 +219,8 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 	queryParams := map[string]tagInfo{}
 
 	for i := 0; i < t.NumField(); i++ {
-		opts := strings.Split(t.Field(i).Tag.Get("path"), ",")
+		field := t.Field(i)
+		opts := strings.Split(field.Tag.Get("path"), ",")
 
 		key := opts[0]
 		if key == "" {
@@ -168,11 +230,13 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 		pathParams[key] = tagInfo{
 			Idx:      i,
 			Required: true,
+			Kind:     field.Type.Kind(),
 		}
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		opts := strings.Split(t.Field(i).Tag.Get("header"), ",")
+		field := t.Field(i)
+		opts := strings.Split(field.Tag.Get("header"), ",")
 
 		key := opts[0]
 		if key == "" {
@@ -187,11 +251,13 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 		headerParams[key] = tagInfo{
 			Idx:      i,
 			Required: required,
+			Kind:     field.Type.Kind(),
 		}
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		opts := strings.Split(t.Field(i).Tag.Get("query"), ",")
+		field := t.Field(i)
+		opts := strings.Split(field.Tag.Get("query"), ",")
 		key := opts[0]
 		if key == "" {
 			continue
@@ -205,6 +271,7 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 		queryParams[key] = tagInfo{
 			Idx:      i,
 			Required: required,
+			Kind:     field.Type.Kind(),
 		}
 	}
 
