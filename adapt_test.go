@@ -1,4 +1,4 @@
-package main
+package adapter
 
 import (
 	"testing"
@@ -7,6 +7,11 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type Foo struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 var err error
 var pathParam string
 var headerParam string
@@ -14,7 +19,7 @@ var headerParam string
 var weight = 10
 
 func BenchmarkAdapter(b *testing.B) {
-	adapted := adapt(func(ctx *routing.Context, args struct {
+	adapted := Adapt(func(ctx *routing.Context, args struct {
 		PathParam   string `path:"path-param"`
 		HeaderParam string `header:"header-param"`
 	}) error {
@@ -54,7 +59,7 @@ func TestAdapt(t *testing.T) {
 		ctx := buildFakeContext()
 
 		var p string
-		err := adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *routing.Context, args struct {
 			P string `path:"path-param"`
 		}) error {
 			p = args.P
@@ -73,7 +78,7 @@ func TestAdapt(t *testing.T) {
 		ctx.SetParam("path-param", "")
 
 		var p string
-		err := adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *routing.Context, args struct {
 			P string `path:"path-param"`
 		}) error {
 			p = "reached this line"
@@ -91,7 +96,7 @@ func TestAdapt(t *testing.T) {
 		ctx := buildFakeContext()
 
 		var p string
-		err := adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *routing.Context, args struct {
 			P string `header:"header-param"`
 		}) error {
 			p = args.P
@@ -109,7 +114,7 @@ func TestAdapt(t *testing.T) {
 		ctx := buildFakeContext()
 
 		var p string
-		err := adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *routing.Context, args struct {
 			P string `query:"query-param"`
 		}) error {
 			p = args.P
@@ -127,7 +132,7 @@ func TestAdapt(t *testing.T) {
 		ctx := buildFakeContext()
 
 		var p Foo
-		err := adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *routing.Context, args struct {
 			JSONBody Foo
 		}) error {
 			p = args.JSONBody

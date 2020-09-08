@@ -5,8 +5,11 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/deadcheat/goblet v1.3.1/go.mod h1:IrMNyAwyrVgB30HsND2WgleTUM4wHTS9m40yNY6NJQg=
 github.com/deadcheat/gonch v0.0.0-20180528124129-c2ff7a019863/go.mod h1:/5mH3gAuXUxGN3maOBAxBfB8RXvP9tBIX5fx2x1k0V0=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
+github.com/erikdubbelboer/fasthttp v1.1.0 h1:1h8nFbBnO6EREMsWeosk+aOOedRnxLwLLN6uIiSJdqY=
+github.com/erikdubbelboer/fasthttp v1.1.0/go.mod h1:YojgAq9LRzThKTCQ/sS70/T2cQqMC2Gen0Vu7iCisxg=
 github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
 github.com/jackwhelpton/fasthttp-routing v1.0.0 h1:7I66sRq//9IMroX1HgJqGs9we3AVroI/y44I0jYSSaM=
+github.com/jackwhelpton/fasthttp-routing v1.0.0/go.mod h1:va5IlBy6Iw0PdzkU0KudovWLSjBOPCuJ50s5o3oAxps=
 github.com/jackwhelpton/fasthttp-routing/v2 v2.0.0 h1:8l02CX1twfboGPYJGLWgvPsxa5mufBJ+v9dzufIFJnM=
 github.com/jackwhelpton/fasthttp-routing/v2 v2.0.0/go.mod h1:k1L/oz6KIjvkPH4QOk+iQNy6Qb6hKr1q/MoeAIAceAw=
 github.com/klauspost/compress v1.4.0/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
@@ -25,6 +28,7 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/testify v1.1.4/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
+github.com/valyala/bytebufferpool v0.0.0-20160817181652-e746df99fe4a/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.0.0/go.mod h1:4vX61m6KN+xDduDNwXrhIAVZaZaZiQ1luJk8LWSxF3s=
