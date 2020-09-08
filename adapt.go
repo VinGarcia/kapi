@@ -12,45 +12,6 @@ import (
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
 )
 
-type ValidationError struct {
-	error
-	Code ErrCode
-}
-
-func NewValidationError(msg string, args ...interface{}) ValidationError {
-	return ValidationError{
-		error: fmt.Errorf(msg, args...),
-	}
-}
-
-func NewMissingRequiredParamError(msg string, args ...interface{}) ValidationError {
-	return ValidationError{
-		error: fmt.Errorf(msg, args...),
-		Code:  MissingRequiredParamError,
-	}
-}
-
-type ErrCode uint
-
-const (
-	NoError ErrCode = iota
-	UnexpectedError
-	MissingRequiredParamError
-)
-
-func ErrorCode(err error) ErrCode {
-	if err == nil {
-		return NoError
-	}
-
-	validationError, ok := err.(ValidationError)
-	if !ok {
-		return UnexpectedError
-	}
-
-	return validationError.Code
-}
-
 var ctxType = reflect.TypeOf(&routing.Context{})
 var errType = reflect.TypeOf(new(error)).Elem()
 
@@ -103,7 +64,9 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range pathParams {
 			param := ctx.Param(key)
 			if param == "" && info.Required {
-				return NewMissingRequiredParamError("path param '%s' is empty", key)
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"path param '%s' is empty", key,
+				))
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -118,7 +81,9 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
 			if param == "" && info.Required {
-				return NewMissingRequiredParamError("required header param '%s' is empty", key)
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"required header param '%s' is empty", key,
+				))
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -133,7 +98,9 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
 			if param == "" && info.Required {
-				return NewMissingRequiredParamError("required query param '%s' is empty", key)
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"required query param '%s' is empty", key,
+				))
 			}
 
 			v, err := decodeType(info.Kind, param)

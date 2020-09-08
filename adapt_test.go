@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"net/http"
 	"testing"
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
@@ -382,9 +383,12 @@ func TestAdapt(t *testing.T) {
 			p = "reached this line"
 			return nil
 		})(ctx)
-		if ErrorCode(err) != MissingRequiredParamError {
+
+		httpErr, ok := err.(routing.HTTPError)
+		if !ok || httpErr.StatusCode() != http.StatusBadRequest {
 			t.Fatalf("expected MissingRequiredParamError bug got: %T", err)
 		}
+
 		if p == "reached this line" {
 			t.Fatalf("the callback should not have been executed!")
 		}
