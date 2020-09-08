@@ -40,7 +40,9 @@ func BenchmarkAdapter(b *testing.B) {
 		return nil
 	}
 
-	ctx := buildFakeContext()
+	ctx := buildFakeContext(mockedArgs{
+		PathParam: "fake-path-param",
+	})
 	b.Run("adapted handler", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			err = adapted(ctx)
@@ -55,29 +57,91 @@ func BenchmarkAdapter(b *testing.B) {
 }
 
 func TestAdapt(t *testing.T) {
-	t.Run("should parse 1 param from path correctly", func(t *testing.T) {
-		ctx := buildFakeContext()
 
-		var p string
-		err := Adapt(func(ctx *routing.Context, args struct {
-			P string `path:"path-param"`
-		}) error {
-			p = args.P
-			return nil
-		})(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error received: %s", err.Error())
+	t.Run("testing happy paths", func(t *testing.T) {
+		var returnValue interface{}
+		tests := []struct {
+			desc          string
+			ctx           *routing.Context
+			fn            interface{}
+			expectedValue interface{}
+		}{
+			{
+				desc: "should parse 1 param from path correctly",
+				ctx: buildFakeContext(mockedArgs{
+					PathParam: "fake-path-param",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					P string `path:"path-param"`
+				}) error {
+					returnValue = args.P
+					return nil
+				},
+				expectedValue: "fake-path-param",
+			},
+
+			{
+				desc: "should parse 1 param from the header correctly",
+				ctx: buildFakeContext(mockedArgs{
+					HeaderParam: "fake-header-param",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					P string `header:"header-param"`
+				}) error {
+					returnValue = args.P
+					return nil
+				},
+				expectedValue: "fake-header-param",
+			},
+
+			{
+				desc: "should parse 1 param from query correctly",
+				ctx: buildFakeContext(mockedArgs{
+					QueryParam: "fake-query-param",
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					P string `query:"query-param"`
+				}) error {
+					returnValue = args.P
+					return nil
+				},
+				expectedValue: "fake-query-param",
+			},
+
+			{
+				desc: "should parse a JSONBody correctly",
+				ctx: buildFakeContext(mockedArgs{
+					Body: `{"id":32,"name":"John Doe"}`,
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					JSONBody Foo
+				}) error {
+					returnValue = args.JSONBody.Name
+					return nil
+				},
+				expectedValue: "John Doe",
+			},
 		}
-		if p != "fake-path-param" {
-			t.Fatalf("expected path param was not received, got %s", p)
+
+		for _, test := range tests {
+			t.Run(test.desc, func(t *testing.T) {
+				ctx := test.ctx
+
+				err := Adapt(test.fn)(ctx)
+				if err != nil {
+					t.Fatalf("unexpected error received: %s", err.Error())
+				}
+				if returnValue != test.expectedValue {
+					t.Fatalf("expected param was not received, got %s", returnValue)
+				}
+			})
 		}
 	})
 
 	t.Run("should report error when path param is empty", func(t *testing.T) {
-		ctx := buildFakeContext()
-		ctx.SetParam("path-param", "")
+		ctx := buildFakeContext(mockedArgs{})
 
-		var p string
+		var p interface{}
 		err := Adapt(func(ctx *routing.Context, args struct {
 			P string `path:"path-param"`
 		}) error {
@@ -91,72 +155,31 @@ func TestAdapt(t *testing.T) {
 			t.Fatalf("the callback should not have been executed!")
 		}
 	})
-
-	t.Run("should parse 1 param from the header correctly", func(t *testing.T) {
-		ctx := buildFakeContext()
-
-		var p string
-		err := Adapt(func(ctx *routing.Context, args struct {
-			P string `header:"header-param"`
-		}) error {
-			p = args.P
-			return nil
-		})(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error received: %s", err.Error())
-		}
-		if p != "fake-header-param" {
-			t.Fatalf("expected path param was not received, got %s", p)
-		}
-	})
-
-	t.Run("should parse 1 param from query correctly", func(t *testing.T) {
-		ctx := buildFakeContext()
-
-		var p string
-		err := Adapt(func(ctx *routing.Context, args struct {
-			P string `query:"query-param"`
-		}) error {
-			p = args.P
-			return nil
-		})(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error received: %s", err.Error())
-		}
-		if p != "fake-query-param" {
-			t.Fatalf("expected query param was not received, got %s", p)
-		}
-	})
-
-	t.Run("should parse a JSONBody correctly", func(t *testing.T) {
-		ctx := buildFakeContext()
-
-		var p Foo
-		err := Adapt(func(ctx *routing.Context, args struct {
-			JSONBody Foo
-		}) error {
-			p = args.JSONBody
-			return nil
-		})(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error received: %s", err.Error())
-		}
-		if p.ID != 32 {
-			t.Fatalf("expected body id to equal 32, but got %d", p.ID)
-		}
-		if p.Name != "John Doe" {
-			t.Fatalf("expected body name to equal 'John Doe', but got %s", p.Name)
-		}
-	})
 }
 
-func buildFakeContext() *routing.Context {
+type mockedArgs struct {
+	PathParam   string
+	HeaderParam string
+	QueryParam  string
+	Body        string
+}
+
+func buildFakeContext(args mockedArgs) *routing.Context {
 	ctx := &routing.Context{
 		RequestCtx: &fasthttp.RequestCtx{},
 	}
-	ctx.SetParam("path-param", "fake-path-param")
-	ctx.Request.SetBody([]byte(`{"id":32,"name":"John Doe"}`))
-	ctx.Request.Header.Set("header-param", "fake-header-param")
-	ctx.Request.URI().QueryArgs().Set("query-param", "fake-query-param")
+	ctx.SetParam("path-param", args.PathParam)
+
+	if args.HeaderParam != "" {
+		ctx.Request.Header.Set("header-param", args.HeaderParam)
+	}
+
+	if args.QueryParam != "" {
+		ctx.Request.URI().QueryArgs().Set("query-param", args.QueryParam)
+	}
+
+	if args.Body != "" {
+		ctx.Request.SetBody([]byte(args.Body))
+	}
 	return ctx
 }
