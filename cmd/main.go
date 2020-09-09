@@ -99,6 +99,6 @@ func main() {
 	// Serve Start
 	fmt.Println("listening-and-serve", "server listening at:", port)
 	if err := fasthttp.ListenAndServe(":"+port, router.HandleRequest); err != nil {
-		fmt.Println("listening-and-serve", err.Error())
+		fmt.Println("error-serving", err.Error())
 	}
 }
