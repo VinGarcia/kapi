@@ -6,7 +6,7 @@ path=./...
 GOPATH=$(shell go env GOPATH)
 
 run:
-	go run main.go
+	go run cmd/main.go
 
 test: setup
 	$(GOPATH)/bin/richgo test $(path) $(args)
@@ -14,15 +14,19 @@ test: setup
 bench:
 	go test -bench=. -benchtime=$(TIME)
 
-adapted:
+request:
 	curl -XPOST localhost:8765/adapted/42?qparam=barbar \
 		-H 'Content-Type: application/json' \
 		-H 'brand: Dito' \
 		-d '{"id":32, "name":"John"}'
 	@echo
 
-not-adapted:
-	curl localhost:8765/not-adapted/42 -H 'brand: Dito'
+plain-request:
+	curl -XPOST localhost:8765/not-adapted/42?qparam=barbar \
+		-H 'Content-Type: application/json' \
+		-H 'brand: Dito' \
+		-d '{"id":32, "name":"John"}'
+	@echo
 
 setup: .make.setup
 .make.setup:
