@@ -16,15 +16,20 @@ type Foo struct {
 	Name string `json:"name"`
 }
 
+type MyType struct {
+	Value string
+}
+
 func main() {
 	router := routing.New()
 	router.Post("/adapted/<id>", adapter.Adapt(func(ctx *routing.Context, args struct {
-		ID       string `path:"id"`
+		ID       uint64 `path:"id"`
 		Brand    string `header:"brand,optional"`
 		Qparam   string `query:"qparam,required"`
+		myType   MyType `uservalue:"my_type"`
 		JSONBody Foo
 	}) error {
-		fmt.Printf("ID: '%s', Brand: '%s'\n", args.ID, args.Brand)
+		fmt.Printf("ID: '%d', Brand: '%s'\n", args.ID, args.Brand)
 		fmt.Printf("Query: '%s', Body: '%#v'\n", args.Qparam, args.JSONBody)
 
 		body, _ := json.Marshal(args)

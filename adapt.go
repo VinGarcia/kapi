@@ -45,7 +45,7 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 	}
 
 	bodyInfo := getBodyInfo(argsType)
-	pathParams, headerParams, queryParams := getTagNames(argsType)
+	pathParams, headerParams, queryParams, userValues := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
 
@@ -113,6 +113,25 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 			args.Elem().Field(info.Idx).Set(v)
 		}
 
+		for key, info := range userValues {
+			param := ctx.UserValue(key)
+			if info.Required && param == nil {
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"required user value '%s' is empty", key,
+				))
+			}
+
+			paramV := reflect.ValueOf(param)
+			canConvert := paramV.Type().ConvertibleTo(info.Type)
+			if !canConvert {
+				return routing.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf(
+					"could not convert userValue %s to type %T", param, info.Type,
+				))
+			}
+
+			args.Elem().Field(info.Idx).Set(paramV.Convert(info.Type))
+		}
+
 		err, _ := v.Call([]reflect.Value{reflect.ValueOf(ctx), args.Elem()})[0].Interface().(error)
 		return err
 	}
@@ -160,6 +179,7 @@ type tagInfo struct {
 	Idx      int
 	Required bool
 	Kind     reflect.Kind
+	Type     reflect.Type
 }
 
 func getBodyInfo(t reflect.Type) *tagInfo {
@@ -180,10 +200,16 @@ func getBodyInfo(t reflect.Type) *tagInfo {
 // that will be used from the type
 // this should save several calls to `Field(i).Tag.Get("foo")`
 // which might improve the performance by a lot.
-func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[string]tagInfo) {
-	pathParams := map[string]tagInfo{}
-	headerParams := map[string]tagInfo{}
-	queryParams := map[string]tagInfo{}
+func getTagNames(t reflect.Type) (
+	pathParams map[string]tagInfo,
+	headerParams map[string]tagInfo,
+	queryParams map[string]tagInfo,
+	userValues map[string]tagInfo,
+) {
+	pathParams = map[string]tagInfo{}
+	headerParams = map[string]tagInfo{}
+	queryParams = map[string]tagInfo{}
+	userValues = map[string]tagInfo{}
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -198,6 +224,7 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 			Idx:      i,
 			Required: true,
 			Kind:     field.Type.Kind(),
+			Type:     field.Type,
 		}
 	}
 
@@ -219,6 +246,7 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 			Idx:      i,
 			Required: required,
 			Kind:     field.Type.Kind(),
+			Type:     field.Type,
 		}
 	}
 
@@ -239,8 +267,30 @@ func getTagNames(t reflect.Type) (map[string]tagInfo, map[string]tagInfo, map[st
 			Idx:      i,
 			Required: required,
 			Kind:     field.Type.Kind(),
+			Type:     field.Type,
 		}
 	}
 
-	return pathParams, headerParams, queryParams
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		opts := strings.Split(field.Tag.Get("uservalue"), ",")
+		key := opts[0]
+		if key == "" {
+			continue
+		}
+
+		required := true
+		if len(opts) > 1 && opts[1] == "optional" {
+			required = false
+		}
+
+		userValues[key] = tagInfo{
+			Idx:      i,
+			Required: required,
+			Kind:     field.Type.Kind(),
+			Type:     field.Type,
+		}
+	}
+
+	return
 }

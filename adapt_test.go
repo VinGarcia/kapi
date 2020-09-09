@@ -357,6 +357,24 @@ func TestAdapt(t *testing.T) {
 					QParam: 44,
 				},
 			},
+
+			{
+				desc: "should parse 1 user value correctly",
+				ctx: buildFakeContext(mockedArgs{
+					UserValue: Foo{
+						Name: "foo-as-user-value",
+					},
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					MyUserValue Foo `uservalue:"user-value"`
+				}) error {
+					returnValue = args.MyUserValue
+					return nil
+				},
+				expectedValue: Foo{
+					Name: "foo-as-user-value",
+				},
+			},
 		}
 
 		for _, test := range tests {
@@ -399,6 +417,7 @@ type mockedArgs struct {
 	PathParam   string
 	HeaderParam string
 	QueryParam  string
+	UserValue   interface{}
 	Body        string
 }
 
@@ -416,8 +435,13 @@ func buildFakeContext(args mockedArgs) *routing.Context {
 		ctx.Request.URI().QueryArgs().Set("query-param", args.QueryParam)
 	}
 
+	if args.UserValue != nil {
+		ctx.SetUserValue("user-value", args.UserValue)
+	}
+
 	if args.Body != "" {
 		ctx.Request.SetBody([]byte(args.Body))
 	}
+
 	return ctx
 }
