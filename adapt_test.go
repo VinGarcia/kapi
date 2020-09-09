@@ -1,7 +1,10 @@
 package adapter
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"testing"
 
 	routing "github.com/jackwhelpton/fasthttp-routing/v2"
@@ -15,35 +18,50 @@ type Foo struct {
 }
 
 var err error
-var pathParam string
+var pathParam int
 var headerParam string
+var body Foo
 
 var weight = 10
 
 func BenchmarkAdapter(b *testing.B) {
 	adapted := Adapt(func(ctx *routing.Context, args struct {
-		PathParam   string `path:"path-param"`
+		PathParam   int    `path:"path-param"`
 		HeaderParam string `header:"header-param"`
+		JSONBody    Foo
 	}) error {
 		pathParam = args.PathParam
 		headerParam = args.HeaderParam
-		for i := 0; i < weight; i++ {
-			headerParam = headerParam + "0"
-		}
+		body = args.JSONBody
+
 		return nil
 	})
 
-	notAdapted := func(ctx *routing.Context) error {
-		pathParam = ctx.Param("path-param")
-		headerParam = string(ctx.Request.Header.Peek("header-param"))
-		for i := 0; i < weight; i++ {
-			headerParam = headerParam + "0"
+	notAdapted := func(ctx *routing.Context) (err error) {
+		pathParam, err = strconv.Atoi(ctx.Param("path-param"))
+		if err != nil {
+			fmt.Println("deu ruim!")
+			return err
 		}
+		headerParam = string(ctx.Request.Header.Peek("header-param"))
+		if headerParam == "" {
+			fmt.Println("deu ruim!")
+			return fmt.Errorf("deu ruim!")
+		}
+
+		err = json.Unmarshal(ctx.PostBody(), &body)
+		if err != nil {
+			fmt.Println("deu ruim")
+			return err
+		}
+
 		return nil
 	}
 
 	ctx := buildFakeContext(mockedArgs{
-		PathParam: "fake-path-param",
+		PathParam:   "42",
+		HeaderParam: "fake-header-param",
+		Body:        `{"id":32,"name":"John Doe"}`,
 	})
 	b.Run("adapted handler", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
