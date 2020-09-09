@@ -22,36 +22,76 @@ type MyType struct {
 
 func main() {
 	router := routing.New()
-	router.Post("/adapted/<id>", adapter.Adapt(func(ctx *routing.Context, args struct {
+
+	middleware := func(ctx *routing.Context) error {
+		ctx.SetUserValue("my_type", MyType{
+			Value: "foo",
+		})
+		return nil
+	}
+
+	router.Post("/adapted/<id>", middleware, adapter.Adapt(func(ctx *routing.Context, args struct {
 		ID       uint64 `path:"id"`
 		Brand    string `header:"brand,optional"`
 		Qparam   string `query:"qparam,required"`
-		myType   MyType `uservalue:"my_type"`
+		MyType   MyType `uservalue:"my_type"`
 		JSONBody Foo
 	}) error {
-		fmt.Printf("ID: '%d', Brand: '%s'\n", args.ID, args.Brand)
-		fmt.Printf("Query: '%s', Body: '%#v'\n", args.Qparam, args.JSONBody)
-
-		body, _ := json.Marshal(args)
-		ctx.SetBody(body)
+		jsonResp, _ := json.Marshal(map[string]interface{}{
+			"ID":        args.ID,
+			"Brand":     args.Brand,
+			"Query":     args.Qparam,
+			"Body":      args.JSONBody,
+			"UserValue": args.MyType,
+		})
+		fmt.Println(string(jsonResp))
+		ctx.SetBody(jsonResp)
 
 		return nil
 	}))
 
-	router.Post("/not-adapted/<id>", func(ctx *routing.Context) error {
+	// This route does exactly the same as the route above
+	// but without using the library:
+	router.Post("/not-adapted/<id>", middleware, func(ctx *routing.Context) error {
 		id, err := strconv.Atoi(ctx.Param("id"))
 		if err != nil {
-			fmt.Println("deu ruim")
+			fmt.Println("id is invalid!")
 			return err
 		}
 
 		brand := string(ctx.Request.Header.Peek("brand"))
 		if brand == "" {
 			fmt.Println("deu ruim de novo")
-			return fmt.Errorf("ta faltando a brand!")
+			return fmt.Errorf("brand is missing!")
 		}
 
-		fmt.Printf("ID: '%d', Brand: '%s'\n", id, brand)
+		qparam := string(ctx.Request.URI().QueryArgs().Peek("qparam"))
+		if qparam == "" {
+			return fmt.Errorf("qparam is missing!")
+		}
+
+		myType, ok := ctx.UserValue("my_type").(MyType)
+		if !ok {
+			return fmt.Errorf("missing required user value `my_type`!")
+		}
+
+		var body Foo
+		err = json.Unmarshal(ctx.PostBody(), &body)
+		if err != nil {
+			fmt.Println("error unmarshalling body as JSON!")
+			return err
+		}
+
+		jsonResp, _ := json.Marshal(map[string]interface{}{
+			"ID":        id,
+			"Brand":     brand,
+			"Query":     qparam,
+			"Body":      body,
+			"UserValue": myType,
+		})
+		fmt.Println(string(jsonResp))
+		ctx.SetBody(jsonResp)
+
 		return nil
 	})
 
