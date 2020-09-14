@@ -15,6 +15,28 @@ import (
 var ctxType = reflect.TypeOf(&routing.Context{})
 var errType = reflect.TypeOf(new(error)).Elem()
 
+// Adapt was created to simplify the parsing and validation
+// of the request arguments.
+//
+// The input argument must be a function callback whose first
+// argument is a routing.Context and the second is a struct
+// where each attribute contains a special Tag describing
+// from where it should be parsed, e.g.:
+//
+// func MyAdaptedHandler(ctx *routing.Context, args struct{
+//   PathArgument   int          `path:"my_path_arg"`
+//   QueryArgument  uint64       `query:"my_query_arg"`
+//   HeaderArgument string       `header:"my_header_arg"`
+//   UserValue      MyCustomType `uservalue:"my_user_value"`
+//   Body           MyCustomBody `content-type:"application/json"`
+// }) error {
+//
+//   // ... handle request ...
+//
+//   return nil
+// }
+//
+// > Note all attributes must be public or the adapter will panic
 func Adapt(fn interface{}) func(ctx *routing.Context) error {
 	t := reflect.TypeOf(fn)
 	v := reflect.ValueOf(fn)
