@@ -14,6 +14,7 @@ import (
 
 var ctxType = reflect.TypeOf(&routing.Context{})
 var errType = reflect.TypeOf(new(error)).Elem()
+var byteArrType = reflect.TypeOf([]byte{})
 
 // Adapt was created to simplify the parsing and validation
 // of the request arguments.
@@ -66,21 +67,29 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		log.Fatal("second argument must a struct!")
 	}
 
-	bodyInfo := getBodyInfo(argsType)
+	bodyContentType, bodyInfo := getBodyInfo(argsType)
 	pathParams, headerParams, queryParams, userValues := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
 
 		if bodyInfo != nil {
-			param := reflect.New(argsType.Field(bodyInfo.Idx).Type)
-			err := json.Unmarshal(ctx.PostBody(), param.Interface())
-			if err != nil {
-				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"could not parse body as JSON: %s", err.Error(),
-				))
+			var param reflect.Value
+			if bodyInfo.Type == byteArrType {
+				param = reflect.ValueOf(ctx.PostBody())
+			} else if bodyContentType == "application/json" {
+				param = reflect.New(argsType.Field(bodyInfo.Idx).Type)
+				err := json.Unmarshal(ctx.PostBody(), param.Interface())
+				if err != nil {
+					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+						"could not parse body as JSON: %s", err.Error(),
+					))
+				}
+
+				// Dereference the pointer:
+				param = param.Elem()
 			}
 
-			args.Elem().Field(bodyInfo.Idx).Set(param.Elem())
+			args.Elem().Field(bodyInfo.Idx).Set(param)
 		}
 
 		for key, info := range pathParams {
@@ -204,18 +213,27 @@ type tagInfo struct {
 	Type     reflect.Type
 }
 
-func getBodyInfo(t reflect.Type) *tagInfo {
+func getBodyInfo(t reflect.Type) (contentType string, info *tagInfo) {
 	for i := 0; i < t.NumField(); i++ {
-		name := t.Field(i).Name
-		if name == "JSONBody" {
-			return &tagInfo{
+		field := t.Field(i)
+		name := field.Name
+		if name == "Body" {
+			opts := strings.Split(field.Tag.Get("content-type"), ",")
+			contentType = opts[0]
+			if field.Type != byteArrType && contentType == "" {
+				contentType = "application/json"
+			}
+
+			return contentType, &tagInfo{
 				Idx:      i,
 				Required: true,
+				Kind:     field.Type.Kind(),
+				Type:     field.Type,
 			}
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 // This function collects only the names

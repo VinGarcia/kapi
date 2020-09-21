@@ -28,11 +28,11 @@ func BenchmarkAdapter(b *testing.B) {
 	adapted := Adapt(func(ctx *routing.Context, args struct {
 		PathParam   int    `path:"path-param"`
 		HeaderParam string `header:"header-param"`
-		JSONBody    Foo
+		Body        Foo
 	}) error {
 		pathParam = args.PathParam
 		headerParam = args.HeaderParam
-		body = args.JSONBody
+		body = args.Body
 
 		return nil
 	})
@@ -129,17 +129,45 @@ func TestAdapt(t *testing.T) {
 			},
 
 			{
-				desc: "should parse a JSONBody correctly",
+				desc: "should parse the Body correctly",
 				ctx: buildFakeContext(mockedArgs{
 					Body: `{"id":32,"name":"John Doe"}`,
 				}),
 				fn: func(ctx *routing.Context, args struct {
-					JSONBody Foo
+					Body Foo
 				}) error {
-					returnValue = args.JSONBody.Name
+					returnValue = args.Body.Name
 					return nil
 				},
 				expectedValue: "John Doe",
+			},
+
+			{
+				desc: "should use the content-type tag correctly",
+				ctx: buildFakeContext(mockedArgs{
+					Body: `{"id":32,"name":"John Doe"}`,
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					Body Foo `content-type:"application/json"`
+				}) error {
+					returnValue = args.Body.Name
+					return nil
+				},
+				expectedValue: "John Doe",
+			},
+
+			{
+				desc: "should parse raw bodies when the Body type is []byte",
+				ctx: buildFakeContext(mockedArgs{
+					Body: `{"id":32,"name":"John Doe"}`,
+				}),
+				fn: func(ctx *routing.Context, args struct {
+					Body []byte `content-type:"application/json"`
+				}) error {
+					returnValue = string(args.Body)
+					return nil
+				},
+				expectedValue: `{"id":32,"name":"John Doe"}`,
 			},
 
 			{
