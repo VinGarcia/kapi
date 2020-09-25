@@ -1,7 +1,3 @@
-For technical information on how to use it please read:
-
-- https://pkg.go.dev/github.com/vingarcia/go-adapter
-
 # HTTPParser Adapter
 
 This library was created to make it easier and less verbose the
@@ -42,6 +38,10 @@ make request
 > Note: The `cmd/main.go` example contains two routes doing the same thing,
 > one using the library and the other not using it, you can test the
 > not adapted one replacing `adapted` by `not-adapted` on the example below.
+
+For more technical information on how to use please read:
+
+- https://pkg.go.dev/github.com/vingarcia/go-adapter
 
 ## Performance
 
