@@ -39,9 +39,9 @@ make request
 > one using the library and the other not using it, you can test the
 > not adapted one replacing `adapted` by `not-adapted` on the example below.
 
-For more technical information on how to use please read:
+For more technical information on how to use please read [the Docs][docs]
 
-- https://pkg.go.dev/github.com/vingarcia/go-adapter
+[docs]: https://pkg.go.dev/github.com/vingarcia/go-adapter
 
 ## Performance
 
