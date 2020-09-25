@@ -74,9 +74,8 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 
 		if bodyInfo != nil {
 			var param reflect.Value
-			if bodyInfo.Type == byteArrType {
-				param = reflect.ValueOf(ctx.PostBody())
-			} else if bodyContentType == "application/json" {
+			switch bodyContentType {
+			case "application/json":
 				param = reflect.New(argsType.Field(bodyInfo.Idx).Type)
 				err := json.Unmarshal(ctx.PostBody(), param.Interface())
 				if err != nil {
@@ -84,9 +83,16 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 						"could not parse body as JSON: %s", err.Error(),
 					))
 				}
-
 				// Dereference the pointer:
 				param = param.Elem()
+
+			case "application/octet-stream":
+				param = reflect.ValueOf(ctx.PostBody())
+			default:
+				panic(fmt.Sprintf(
+					"code error: unexpected mimetype received: '%s', for the Body field",
+					bodyContentType,
+				))
 			}
 
 			args.Elem().Field(bodyInfo.Idx).Set(param)
@@ -225,7 +231,10 @@ func getBodyInfo(t reflect.Type) (contentType string, info *tagInfo) {
 			}
 
 			switch contentType {
+			case "":
+				contentType = "application/json"
 			case "application/json":
+			case "application/octet-stream":
 			default:
 				panic(fmt.Sprintf(
 					"mimetype '%s' is not supported yet for field %s",
