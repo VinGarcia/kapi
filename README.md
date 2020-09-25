@@ -1,3 +1,7 @@
+For technical information on how to use it please read:
+
+- https://pkg.go.dev/github.com/vingarcia/go-adapter
+
 # HTTPParser Adapter
 
 This library was created to make it easier and less verbose the
