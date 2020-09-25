@@ -6,7 +6,7 @@ path=./...
 GOPATH=$(shell go env GOPATH)
 
 run:
-	go run cmd/main.go
+	go run example/main.go
 
 test: setup
 	$(GOPATH)/bin/richgo test $(path) $(args)

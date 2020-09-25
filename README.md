@@ -7,11 +7,11 @@ A simple usage example is as follows:
 
 ```Go
   router.Post("/adapted/<id>", adapter.Adapt(func(ctx *routing.Context, args struct {
-  	ID       uint64 `path:"id"`
-  	Brand    string `header:"brand,optional"`
-  	Qparam   string `query:"qparam,required"`
-  	myType   MyType `uservalue:"my_type"`
-  	JSONBody Foo
+  	ID     uint64 `path:"id"`
+  	Brand  string `header:"brand,optional"`
+  	Qparam string `query:"qparam,required"`
+  	myType MyType `uservalue:"my_type"`
+  	Body   Foo    `content-type:"application/json"`
   }) error {
   	// Do stuff
 

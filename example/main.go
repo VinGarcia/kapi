@@ -31,18 +31,18 @@ func main() {
 	}
 
 	router.Post("/adapted/<id>", middleware, adapter.Adapt(func(ctx *routing.Context, args struct {
-		ID       uint64 `path:"id"`
-		Brand    string `header:"brand,optional"`
-		Qparam   string `query:"qparam,required"`
-		MyType   MyType `uservalue:"my_type"`
-		JSONBody Foo
+		ID     uint64 `path:"id"`
+		Brand  string `header:"brand,optional"`
+		Qparam string `query:"qparam,required"`
+		MyType MyType `uservalue:"my_type"`
+		Body   Foo    `content-type:"application/json"`
 	}) error {
 		jsonResp, _ := json.Marshal(map[string]interface{}{
 			"ID":        args.ID,
 			"Brand":     args.Brand,
 			"Query":     args.Qparam,
-			"Body":      args.JSONBody,
 			"UserValue": args.MyType,
+			"Body":      args.Body,
 		})
 		fmt.Println(string(jsonResp))
 		ctx.SetBody(jsonResp)
