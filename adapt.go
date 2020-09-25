@@ -220,8 +220,18 @@ func getBodyInfo(t reflect.Type) (contentType string, info *tagInfo) {
 		if name == "Body" {
 			opts := strings.Split(field.Tag.Get("content-type"), ",")
 			contentType = opts[0]
-			if field.Type != byteArrType && contentType == "" {
-				contentType = "application/json"
+			if field.Type == byteArrType {
+				contentType = "application/octet-stream"
+			}
+
+			switch contentType {
+			case "application/json":
+			default:
+				panic(fmt.Sprintf(
+					"mimetype '%s' is not supported yet for field %s",
+					contentType,
+					field.Name,
+				))
 			}
 
 			return contentType, &tagInfo{
