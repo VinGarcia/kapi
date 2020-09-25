@@ -37,7 +37,7 @@ var byteArrType = reflect.TypeOf([]byte{})
 //     return nil
 //   }
 //
-// > Note all attributes must be public or the adapter will panic
+// Note: all attributes must be public or the adapter will panic
 func Adapt(fn interface{}) func(ctx *routing.Context) error {
 	t := reflect.TypeOf(fn)
 	v := reflect.ValueOf(fn)
