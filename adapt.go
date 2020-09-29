@@ -100,10 +100,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 
 		for key, info := range pathParams {
 			param := ctx.Param(key)
-			if param == "" && info.Required {
-				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"path param '%s' is empty", key,
-				))
+			if param == "" {
+				if info.Default != "" {
+					param = info.Default
+				} else if info.Required {
+					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+						"path param '%s' is empty", key,
+					))
+				}
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -117,10 +121,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		}
 		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
-			if param == "" && info.Required {
-				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"required header param '%s' is empty", key,
-				))
+			if param == "" {
+				if info.Default != "" {
+					param = info.Default
+				} else if info.Required {
+					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+						"required header param '%s' is empty", key,
+					))
+				}
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -134,10 +142,14 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		}
 		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
-			if param == "" && info.Required {
-				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"required query param '%s' is empty", key,
-				))
+			if param == "" {
+				if info.Default != "" {
+					param = info.Default
+				} else if info.Required {
+					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+						"required query param '%s' is empty", key,
+					))
+				}
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -217,6 +229,7 @@ type tagInfo struct {
 	Required bool
 	Kind     reflect.Kind
 	Type     reflect.Type
+	Default  string // TODO: use a reflect.Value instead for saving on the conversion time
 }
 
 func getBodyInfo(t reflect.Type) (contentType string, info *tagInfo) {
@@ -284,6 +297,7 @@ func getTagNames(t reflect.Type) (
 			Required: true,
 			Kind:     field.Type.Kind(),
 			Type:     field.Type,
+			Default:  field.Tag.Get("default"),
 		}
 	}
 
@@ -306,6 +320,7 @@ func getTagNames(t reflect.Type) (
 			Required: required,
 			Kind:     field.Type.Kind(),
 			Type:     field.Type,
+			Default:  field.Tag.Get("default"),
 		}
 	}
 
@@ -327,6 +342,7 @@ func getTagNames(t reflect.Type) (
 			Required: required,
 			Kind:     field.Type.Kind(),
 			Type:     field.Type,
+			Default:  field.Tag.Get("default"),
 		}
 	}
 
