@@ -423,22 +423,38 @@ func TestAdapt(t *testing.T) {
 			},
 
 			{
-				desc: "should parse default integers correctly",
+				desc: "should ignore optional integers with no errors",
 				ctx:  buildFakeContext(mockedArgs{}),
 				fn: func(ctx *routing.Context, args struct {
-					Path   int `path:"path-param" default:"42"`
-					Header int `header:"path-param" default:"43"`
-					Query  int `query:"query-param" default:"44"`
+					Header int `header:"header-param,optional"`
+					Query  int `query:"query-param"`
 				}) error {
 					returnValue = map[string]int{
-						"path":   args.Path,
 						"header": args.Header,
 						"query":  args.Query,
 					}
 					return nil
 				},
 				expectedValue: map[string]int{
-					"path":   42,
+					"header": 0,
+					"query":  0,
+				},
+			},
+
+			{
+				desc: "should parse default integers correctly",
+				ctx:  buildFakeContext(mockedArgs{}),
+				fn: func(ctx *routing.Context, args struct {
+					Header int `header:"header-param" default:"43"`
+					Query  int `query:"query-param" default:"44"`
+				}) error {
+					returnValue = map[string]int{
+						"header": args.Header,
+						"query":  args.Query,
+					}
+					return nil
+				},
+				expectedValue: map[string]int{
 					"header": 43,
 					"query":  44,
 				},
@@ -448,19 +464,16 @@ func TestAdapt(t *testing.T) {
 				desc: "should parse default string correctly",
 				ctx:  buildFakeContext(mockedArgs{}),
 				fn: func(ctx *routing.Context, args struct {
-					Path   string `path:"path-param" default:"42"`
-					Header string `header:"path-param" default:"43"`
+					Header string `header:"header-param" default:"43"`
 					Query  string `query:"query-param" default:"44"`
 				}) error {
 					returnValue = map[string]string{
-						"path":   args.Path,
 						"header": args.Header,
 						"query":  args.Query,
 					}
 					return nil
 				},
 				expectedValue: map[string]string{
-					"path":   "42",
 					"header": "43",
 					"query":  "44",
 				},

@@ -71,7 +71,6 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 	pathParams, headerParams, queryParams, userValues := getTagNames(argsType)
 	return func(ctx *routing.Context) error {
 		args := reflect.New(argsType)
-
 		if bodyInfo != nil {
 			var param reflect.Value
 			switch bodyContentType {
@@ -101,13 +100,11 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range pathParams {
 			param := ctx.Param(key)
 			if param == "" {
-				if info.Default != "" {
-					param = info.Default
-				} else if info.Required {
-					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-						"path param '%s' is empty", key,
-					))
-				}
+				// Path params are always required, that's why we won't
+				// check the Default and Required fields here
+				return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
+					"path param '%s' is empty", key,
+				))
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -122,13 +119,16 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range headerParams {
 			param := string(ctx.Request.Header.Peek(key))
 			if param == "" {
-				if info.Default != "" {
-					param = info.Default
-				} else if info.Required {
+				param = info.Default
+			}
+			if param == "" {
+				if info.Required {
 					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
 						"required header param '%s' is empty", key,
 					))
 				}
+
+				continue
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -143,13 +143,16 @@ func Adapt(fn interface{}) func(ctx *routing.Context) error {
 		for key, info := range queryParams {
 			param := string(ctx.Request.URI().QueryArgs().Peek(key))
 			if param == "" {
-				if info.Default != "" {
-					param = info.Default
-				} else if info.Required {
+				param = info.Default
+			}
+			if param == "" {
+				if info.Required {
 					return routing.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
 						"required query param '%s' is empty", key,
 					))
 				}
+
+				continue
 			}
 
 			v, err := decodeType(info.Kind, param)
@@ -297,7 +300,6 @@ func getTagNames(t reflect.Type) (
 			Required: true,
 			Kind:     field.Type.Kind(),
 			Type:     field.Type,
-			Default:  field.Tag.Get("default"),
 		}
 	}
 
