@@ -1,7 +1,14 @@
 # HTTPParser Adapter
 
-This library was created to make it easier and less verbose the
+This library was created to make it easier the
 parsing of request arguments when using the fasthttp framework.
+
+The behavior is simillar to how `json.Unmarshal` works, you give it a struct
+with tags that will be used to inform the parser from where to extract
+each attribute.
+
+So when each request is received the request is parsed and validated into more
+abstract and useful data types that are ready to be used.
 
 A simple usage example is as follows:
 
@@ -13,8 +20,10 @@ A simple usage example is as follows:
   	myType MyType `uservalue:"my_type"`
   	Body   Foo    `content-type:"application/json"`
   }) error {
-  	// Do stuff
-
+  	fmt.Println("request received for brand: '%s'", args.Brand)
+	
+	// Do stuff
+  	
   	return nil
   }
 ```
@@ -47,7 +56,7 @@ For more technical information on how to use it, please read [the Docs][docs]
 
 This library uses reflection which brings performance concerns.
 
-The use of reflection was made with care using only when necessary
+The use of reflection was made with caution using it only when necessary
 and avoiding it on the critical sections of the code.
 
 This granted a performance that isn't terrible:
