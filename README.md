@@ -1,14 +1,17 @@
 # HTTPParser Adapter
 
-This library was created to make it easier the
-parsing of request arguments when using the fasthttp framework.
+This library was created to make the parsing of
+request arguments easier when using the fasthttp framework.
 
 The behavior is simillar to how `json.Unmarshal` works, you give it a struct
 with tags that will be used to inform the parser from where to extract
 each attribute.
 
-So when each request is received the request is parsed and validated into more
+So when each request is received it is parsed and validated into more
 abstract and useful data types that are ready to be used.
+
+If there are problems parsing any of these values it will return
+a routing.HTTPError with a BadRequest status code and a descriptive message.
 
 A simple usage example is as follows:
 
