@@ -20,7 +20,7 @@ A simple usage example is as follows:
   	ID     uint64 `path:"id"`
   	Brand  string `header:"brand,optional"`
   	Qparam string `query:"qparam,required"`
-  	myType MyType `uservalue:"my_type"`
+  	MyType MyType `uservalue:"my_type"`
   	Body   Foo    `content-type:"application/json"`
   }) error {
   	fmt.Println("request received for brand: '%s'", args.Brand)
