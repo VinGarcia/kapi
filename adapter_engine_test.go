@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	routing "github.com/jackwhelpton/fasthttp-routing/v2"
+	fiber "github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 )
@@ -25,7 +25,7 @@ var body Foo
 var weight = 10
 
 func BenchmarkAdapter(b *testing.B) {
-	adapted := Adapt(func(ctx *routing.Context, args struct {
+	adapted := Adapt(func(ctx *fiber.Ctx, args struct {
 		PathParam   int    `path:"path-param"`
 		HeaderParam string `header:"header-param"`
 		Body        Foo
@@ -37,7 +37,7 @@ func BenchmarkAdapter(b *testing.B) {
 		return nil
 	})
 
-	notAdapted := func(ctx *routing.Context) (err error) {
+	notAdapted := func(ctx *fiber.Ctx) (err error) {
 		pathParam, err = strconv.Atoi(ctx.Param("path-param"))
 		if err != nil {
 			fmt.Println("deu ruim!")
@@ -82,7 +82,7 @@ func TestAdapt(t *testing.T) {
 		var returnValue interface{}
 		tests := []struct {
 			desc          string
-			ctx           *routing.Context
+			ctx           *fiber.Ctx
 			fn            interface{}
 			expectedValue interface{}
 		}{
@@ -91,7 +91,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					PathParam: "fake-path-param",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					P string `path:"path-param"`
 				}) error {
 					returnValue = args.P
@@ -105,7 +105,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					HeaderParam: "fake-header-param",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					P string `header:"header-param"`
 				}) error {
 					returnValue = args.P
@@ -119,7 +119,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					QueryParam: "fake-query-param",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					P string `query:"query-param"`
 				}) error {
 					returnValue = args.P
@@ -133,7 +133,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					Body: `{"id":32,"name":"John Doe"}`,
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Body Foo
 				}) error {
 					returnValue = args.Body.Name
@@ -147,7 +147,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					Body: `{"id":32,"name":"John Doe"}`,
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Body Foo `content-type:"application/json"`
 				}) error {
 					returnValue = args.Body.Name
@@ -161,7 +161,7 @@ func TestAdapt(t *testing.T) {
 				ctx: buildFakeContext(mockedArgs{
 					Body: `{"id":32,"name":"John Doe"}`,
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Body []byte `content-type:"application/json"`
 				}) error {
 					returnValue = string(args.Body)
@@ -177,7 +177,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam int `path:"path-param"`
 					HParam int `header:"header-param"`
 					QParam int `query:"query-param"`
@@ -203,7 +203,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam int8 `path:"path-param"`
 					HParam int8 `header:"header-param"`
 					QParam int8 `query:"query-param"`
@@ -229,7 +229,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam int16 `path:"path-param"`
 					HParam int16 `header:"header-param"`
 					QParam int16 `query:"query-param"`
@@ -255,7 +255,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam int32 `path:"path-param"`
 					HParam int32 `header:"header-param"`
 					QParam int32 `query:"query-param"`
@@ -281,7 +281,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam int64 `path:"path-param"`
 					HParam int64 `header:"header-param"`
 					QParam int64 `query:"query-param"`
@@ -307,7 +307,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam uint8 `path:"path-param"`
 					HParam uint8 `header:"header-param"`
 					QParam uint8 `query:"query-param"`
@@ -333,7 +333,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam uint16 `path:"path-param"`
 					HParam uint16 `header:"header-param"`
 					QParam uint16 `query:"query-param"`
@@ -359,7 +359,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam uint32 `path:"path-param"`
 					HParam uint32 `header:"header-param"`
 					QParam uint32 `query:"query-param"`
@@ -385,7 +385,7 @@ func TestAdapt(t *testing.T) {
 					HeaderParam: "43",
 					QueryParam:  "44",
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					PParam uint64 `path:"path-param"`
 					HParam uint64 `header:"header-param"`
 					QParam uint64 `query:"query-param"`
@@ -411,7 +411,7 @@ func TestAdapt(t *testing.T) {
 						Name: "foo-as-user-value",
 					},
 				}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					MyUserValue Foo `uservalue:"user-value"`
 				}) error {
 					returnValue = args.MyUserValue
@@ -425,7 +425,7 @@ func TestAdapt(t *testing.T) {
 			{
 				desc: "should ignore optional integers with no errors",
 				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Header int `header:"header-param,optional"`
 					Query  int `query:"query-param"`
 				}) error {
@@ -444,7 +444,7 @@ func TestAdapt(t *testing.T) {
 			{
 				desc: "should parse default integers correctly",
 				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Header int `header:"header-param" default:"43"`
 					Query  int `query:"query-param" default:"44"`
 				}) error {
@@ -463,7 +463,7 @@ func TestAdapt(t *testing.T) {
 			{
 				desc: "should parse default string correctly",
 				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *routing.Context, args struct {
+				fn: func(ctx *fiber.Ctx, args struct {
 					Header string `header:"header-param" default:"43"`
 					Query  string `query:"query-param" default:"44"`
 				}) error {
@@ -498,15 +498,15 @@ func TestAdapt(t *testing.T) {
 		ctx := buildFakeContext(mockedArgs{})
 
 		var p interface{}
-		err := Adapt(func(ctx *routing.Context, args struct {
+		err := Adapt(func(ctx *fiber.Ctx, args struct {
 			P string `path:"path-param"`
 		}) error {
 			p = "reached this line"
 			return nil
 		})(ctx)
 
-		httpErr, ok := err.(routing.HTTPError)
-		if !ok || httpErr.StatusCode() != http.StatusBadRequest {
+		httpErr, ok := err.(*fiber.Error)
+		if !ok || httpErr.Code != http.StatusBadRequest {
 			t.Fatalf("expected MissingRequiredParamError bug got: %T", err)
 		}
 
@@ -524,8 +524,8 @@ type mockedArgs struct {
 	Body        string
 }
 
-func buildFakeContext(args mockedArgs) *routing.Context {
-	ctx := &routing.Context{
+func buildFakeContext(args mockedArgs) *fiber.Ctx {
+	ctx := &fiber.Ctx{
 		RequestCtx: &fasthttp.RequestCtx{},
 	}
 	ctx.SetParam("path-param", args.PathParam)

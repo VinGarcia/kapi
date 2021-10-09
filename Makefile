@@ -3,13 +3,18 @@ TIME=1s
 args=
 path=./...
 
-GOPATH=$(shell go env GOPATH)
+GOBIN=$(shell go env GOPATH)/bin
 
+FILEPATH=fasthttp-routing/v2/example/main.go
+FILEPATH=fiber/v2/example/main.go
 run:
-	go run example/main.go
+	go run $(FILEPATH)
+
+lint: setup
+	go vet $(path)
 
 test: setup
-	$(GOPATH)/bin/richgo test $(path) $(args)
+	$(GOBIN)/richgo test $(path) $(args)
 
 bench:
 	go test -bench=. -benchtime=$(TIME)
@@ -17,7 +22,7 @@ bench:
 request:
 	curl -XPOST localhost:8765/adapted/42?qparam=barbar \
 		-H 'Content-Type: application/json' \
-		-H 'brand: Dito' \
+		-H 'brand: FakeBrand' \
 		-d '{"id":32, "name":"John"}'
 	@echo
 
@@ -28,8 +33,6 @@ plain-request:
 		-d '{"id":32, "name":"John"}'
 	@echo
 
-setup: .make.setup
-.make.setup:
-	go get github.com/kyoh86/richgo
-	touch .make.setup
-
+setup: $(GOBIN)/richgo
+$(GOBIN)/richgo:
+	GO111MODULE=off go get -u github.com/kyoh86/richgo
