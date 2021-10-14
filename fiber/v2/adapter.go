@@ -7,13 +7,6 @@ import (
 	"github.com/vingarcia/go-adapter"
 )
 
-// This constant is used for validating if the
-// first arguments of the input function matches
-// the arguments we are expecting:
-var argTypes = []reflect.Type{
-	reflect.TypeOf(&fiber.Ctx{}),
-}
-
 // Adapt was created to simplify the parsing and validation
 // of the request arguments.
 //
@@ -37,13 +30,19 @@ var argTypes = []reflect.Type{
 //
 // Note: all attributes in the input struct must be public or the adapter will panic
 func Adapt(fn interface{}) func(ctx *fiber.Ctx) error {
-	t := reflect.TypeOf(fn)
-	v := reflect.ValueOf(fn)
+	fnType := reflect.TypeOf(fn)
+	fnValue := reflect.ValueOf(fn)
 
-	// The slow steps that heavly relie on reflection are done here
-	// only once during startup in order to affect as little
-	// as possible the performance later on.
-	fnInfo := adapter.DecodeHandlerFunction(t, argTypes)
+	// The slow steps that heavily rely on reflection
+	// are done here once during startup in order to affect
+	// as little as possible the performance later on.
+	fnInfo := adapter.DecodeHandlerFunction(fnType, []reflect.Type{
+		// These are the types of the arguments we expect the function to receive
+		// before the "args struct" which should always be the last argument.
+		//
+		// If the input function doesn't match this list the adapter will panic at startup.
+		reflect.TypeOf(&fiber.Ctx{}),
+	})
 	return func(ctx *fiber.Ctx) error {
 		// This part uses cached information from `fnInfo` and uses
 		// reflection only to fill the struct making it more performatic:
@@ -54,7 +53,7 @@ func Adapt(fn interface{}) func(ctx *fiber.Ctx) error {
 
 		// Here we pass the arguments to the user defined handler function in the order
 		// we expect to receive them, i.e. `func(ctx *fiber.Ctx, args MyStruct) error`:
-		err, _ = v.Call([]reflect.Value{reflect.ValueOf(ctx), inputStructPtr.Elem()})[0].Interface().(error)
+		err, _ = fnValue.Call([]reflect.Value{reflect.ValueOf(ctx), inputStructPtr.Elem()})[0].Interface().(error)
 		return err
 	}
 }
