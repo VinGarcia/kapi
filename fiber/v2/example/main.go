@@ -22,7 +22,7 @@ func main() {
 	app := fiber.New()
 
 	middleware := func(ctx *fiber.Ctx) error {
-		fmt.Println("inside the middleware!")
+		fmt.Println("inside the middleware")
 		ctx.Locals("my_type", MyType{
 			Value: "foo",
 		})
@@ -55,30 +55,30 @@ func main() {
 		fmt.Println("here we are on the not-adapted route")
 		id, err := strconv.Atoi(ctx.Params("id"))
 		if err != nil {
-			fmt.Println("id is invalid!")
+			fmt.Println("id is invalid")
 			return err
 		}
 
 		brand := ctx.Get("brand")
 		if brand == "" {
 			fmt.Println("deu ruim de novo")
-			return fmt.Errorf("brand is missing!")
+			return fmt.Errorf("brand is missing")
 		}
 
 		qparam := ctx.Query("qparam")
 		if qparam == "" {
-			return fmt.Errorf("qparam is missing!")
+			return fmt.Errorf("qparam is missing")
 		}
 
 		myType, ok := ctx.Context().Value("my_type").(MyType)
 		if !ok {
-			return fmt.Errorf("missing required user value `my_type`!")
+			return fmt.Errorf("missing required user value `my_type`")
 		}
 
 		var body Foo
 		err = json.Unmarshal(ctx.Body(), &body)
 		if err != nil {
-			fmt.Println("error unmarshalling body as JSON!")
+			fmt.Println("error unmarshalling body as JSON")
 			return err
 		}
 

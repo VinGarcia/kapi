@@ -1,5 +1,6 @@
 package adapter
 
+/*
 type Foo struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -12,7 +13,6 @@ var body Foo
 
 var weight = 10
 
-/*
 func BenchmarkAdapter(b *testing.B) {
 	adapted := Adapt(func(ctx *fiber.Ctx, args struct {
 		PathParam   int    `path:"path-param"`

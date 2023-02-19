@@ -11,7 +11,9 @@ run:
 	go run $(FILEPATH)
 
 lint: setup
-	go vet $(path)
+	@$(GOBIN)/staticcheck $(path) $(args)
+	@go vet $(path) $(args)
+	@echo "StaticCheck & Go Vet found no problems on your code!"
 
 test: setup
 	$(GOBIN)/richgo test $(path) $(args)
@@ -33,6 +35,9 @@ plain-request:
 		-d '{"id":32, "name":"John"}'
 	@echo
 
-setup: $(GOBIN)/richgo
+setup: $(GOBIN)/richgo $(GOBIN)/staticcheck
 $(GOBIN)/richgo:
 	GO111MODULE=off go get -u github.com/kyoh86/richgo
+
+$(GOBIN)/staticcheck:
+	go install honnef.co/go/tools/cmd/staticcheck@latest

@@ -55,30 +55,30 @@ func main() {
 	router.Post("/not-adapted/<id>", middleware, func(ctx *routing.Context) error {
 		id, err := strconv.Atoi(ctx.Param("id"))
 		if err != nil {
-			fmt.Println("id is invalid!")
+			fmt.Println("id is invalid")
 			return err
 		}
 
 		brand := string(ctx.Request.Header.Peek("brand"))
 		if brand == "" {
 			fmt.Println("deu ruim de novo")
-			return fmt.Errorf("brand is missing!")
+			return fmt.Errorf("brand is missing")
 		}
 
 		qparam := string(ctx.Request.URI().QueryArgs().Peek("qparam"))
 		if qparam == "" {
-			return fmt.Errorf("qparam is missing!")
+			return fmt.Errorf("qparam is missing")
 		}
 
 		myType, ok := ctx.UserValue("my_type").(MyType)
 		if !ok {
-			return fmt.Errorf("missing required user value `my_type`!")
+			return fmt.Errorf("missing required user value `my_type`")
 		}
 
 		var body Foo
 		err = json.Unmarshal(ctx.PostBody(), &body)
 		if err != nil {
-			fmt.Println("error unmarshalling body as JSON!")
+			fmt.Println("error unmarshalling body as JSON")
 			return err
 		}
 
