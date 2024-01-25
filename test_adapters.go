@@ -1,4 +1,4 @@
-package adapter
+package kapi
 
 /*
 type Foo struct {
@@ -65,13 +65,15 @@ func BenchmarkAdapter(b *testing.B) {
 	})
 }
 
-func AdaptTestSuite(t *testing.T, dialect Dialect) {
-
+func AdaptTestSuite(
+	t *testing.T,
+	newAdapter func(args []reflect.Value) RequestAdapter,
+) {
 	t.Run("testing happy paths", func(t *testing.T) {
 		var returnValue interface{}
 		tests := []struct {
 			desc          string
-			ctx           *fiber.Ctx
+			ctx           RequestAdapter
 			fn            interface{}
 			expectedValue interface{}
 		}{
@@ -478,12 +480,14 @@ func AdaptTestSuite(t *testing.T, dialect Dialect) {
 					t.Fatalf("unexpected error received: %s", err.Error())
 				}
 
-				assert.Equal(t, test.expectedValue, returnValue)
+				tt.AssertEqual(t, test.expectedValue, returnValue)
 			})
 		}
 	})
 
 	t.Run("should report error when path param is empty", func(t *testing.T) {
+		server := httptest.NewServer()
+
 		ctx := buildFakeContext(mockedArgs{})
 
 		var p interface{}

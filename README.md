@@ -24,9 +24,9 @@ A simple usage example is as follows:
   	Body   Foo    `content-type:"application/json"`
   }) error {
   	fmt.Println("request received for brand: '%s'", args.Brand)
-	
+
 	// Do stuff
-  	
+
   	return nil
   }
 ```
@@ -53,7 +53,7 @@ make request
 
 For more technical information on how to use it, please read [the Docs][docs]
 
-[docs]: https://pkg.go.dev/github.com/vingarcia/go-adapter
+[docs]: https://pkg.go.dev/github.com/vingarcia/kapi
 
 ## Performance
 
@@ -68,11 +68,11 @@ This granted a performance that isn't terrible:
 go test -bench=. -benchtime=15s
 goos: linux
 goarch: amd64
-pkg: github.com/vingarcia/go-adapter
+pkg: github.com/vingarcia/kapi
 BenchmarkAdapter/adapted_handler-4         	 5416262	      3402 ns/op
 BenchmarkAdapter/not_adapted_handler-4     	11372478	      1666 ns/op
 PASS
-ok  	github.com/vingarcia/go-adapter	42.354s
+ok  	github.com/vingarcia/kapi	42.354s
 ```
 
 The functions tested above are very common examples parsing one integer

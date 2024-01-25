@@ -1,4 +1,4 @@
-package adapter
+package kapi
 
 import (
 	"encoding/json"
@@ -68,7 +68,7 @@ func DecodeHandlerFunction(fnType reflect.Type, expectedArgTypes []reflect.Type)
 	}
 }
 
-func UnmarshalRequestAsStruct(request Dialect, funcInfo DecodedHandlerFunction) (inputStruct reflect.Value, _ error) {
+func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFunction) (inputStruct reflect.Value, _ error) {
 	inputStruct = reflect.New(funcInfo.structType)
 	if funcInfo.bodyInfo != nil {
 		var param reflect.Value

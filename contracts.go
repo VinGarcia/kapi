@@ -1,14 +1,13 @@
-package adapter
+package kapi
 
-import (
-	"reflect"
-)
+type any = interface{}
 
-type DialectFactory func(args []reflect.Value) Dialect
-
-// Dialect describes how to interact with different HTTP Frameworks.
-// By filling the following attributes you can describe a new framework yourself.
-type Dialect interface {
+// RequestAdapter is the minimum interface required for interacting
+// with an input request and return a response.
+//
+// This interface allows different http clients to be used
+// as a backend driver for this library.
+type RequestAdapter interface {
 	// Returns an http error that is approriate for the framework
 	NewHTTPError(statusCode int, msg string) error
 
@@ -26,5 +25,6 @@ type Dialect interface {
 	// This function should return the value as an emtpy
 	// interface as it will be converted to the type
 	// described on the adapter's input struct.
-	GetContextValue(contextKey string) interface{}
+	GetContextValue(contextKey string) any
+	SetContextValue(contextKey string, value any)
 }

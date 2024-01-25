@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
-	adapter "github.com/vingarcia/go-adapter/fiber/v2"
+	routing "github.com/jackwhelpton/fasthttp-routing/v2"
+	"github.com/valyala/fasthttp"
+
+	adapter "github.com/vingarcia/kapi/adapters/fasthttp-routingV2"
 )
 
 type Foo struct {
@@ -19,17 +21,16 @@ type MyType struct {
 }
 
 func main() {
-	app := fiber.New()
+	router := routing.New()
 
-	middleware := func(ctx *fiber.Ctx) error {
-		fmt.Println("inside the middleware")
-		ctx.Locals("my_type", MyType{
+	middleware := func(ctx *routing.Context) error {
+		ctx.SetUserValue("my_type", MyType{
 			Value: "foo",
 		})
-		return ctx.Next()
+		return nil
 	}
 
-	app.Post("/adapted/:id", middleware, adapter.Adapt(func(ctx *fiber.Ctx, args struct {
+	router.Post("/adapted/<id>", middleware, adapter.Adapt(func(ctx *routing.Context, args struct {
 		ID     uint64 `path:"id"`
 		Brand  string `header:"brand,optional"`
 		Qparam string `query:"qparam,required"`
@@ -44,39 +45,38 @@ func main() {
 			"Body":      args.Body,
 		})
 		fmt.Println(string(jsonResp))
-		ctx.Send(jsonResp)
+		ctx.SetBody(jsonResp)
 
 		return nil
 	}))
 
 	// This route does exactly the same as the route above
 	// but without using the library:
-	app.Post("/not-adapted/:id", middleware, func(ctx *fiber.Ctx) error {
-		fmt.Println("here we are on the not-adapted route")
-		id, err := strconv.Atoi(ctx.Params("id"))
+	router.Post("/not-adapted/<id>", middleware, func(ctx *routing.Context) error {
+		id, err := strconv.Atoi(ctx.Param("id"))
 		if err != nil {
 			fmt.Println("id is invalid")
 			return err
 		}
 
-		brand := ctx.Get("brand")
+		brand := string(ctx.Request.Header.Peek("brand"))
 		if brand == "" {
 			fmt.Println("deu ruim de novo")
 			return fmt.Errorf("brand is missing")
 		}
 
-		qparam := ctx.Query("qparam")
+		qparam := string(ctx.Request.URI().QueryArgs().Peek("qparam"))
 		if qparam == "" {
 			return fmt.Errorf("qparam is missing")
 		}
 
-		myType, ok := ctx.Context().Value("my_type").(MyType)
+		myType, ok := ctx.UserValue("my_type").(MyType)
 		if !ok {
 			return fmt.Errorf("missing required user value `my_type`")
 		}
 
 		var body Foo
-		err = json.Unmarshal(ctx.Body(), &body)
+		err = json.Unmarshal(ctx.PostBody(), &body)
 		if err != nil {
 			fmt.Println("error unmarshalling body as JSON")
 			return err
@@ -90,7 +90,7 @@ func main() {
 			"UserValue": myType,
 		})
 		fmt.Println(string(jsonResp))
-		ctx.Send(jsonResp)
+		ctx.SetBody(jsonResp)
 
 		return nil
 	})
@@ -98,7 +98,7 @@ func main() {
 	port := "8765"
 	// Serve Start
 	fmt.Println("listening-and-serve", "server listening at:", port)
-	if err := app.Listen(":" + port); err != nil {
+	if err := fasthttp.ListenAndServe(":"+port, router.HandleRequest); err != nil {
 		fmt.Println("error-serving", err.Error())
 	}
 }
