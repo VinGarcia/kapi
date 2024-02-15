@@ -5,8 +5,6 @@ import (
 	"github.com/vingarcia/kapi"
 )
 
-type any = interface{}
-
 // Adapter implements the kapi.RequestAdapter interface
 type Adapter struct {
 	ctx *fiber.Ctx

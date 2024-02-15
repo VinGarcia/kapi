@@ -1,7 +1,11 @@
-# HTTPParser Adapter
+# KAPI
+
+A Keep It Simple library for writing your APIs with automatic
+generation of a Swagger documentation.
 
 This library was created to make the parsing of
-request arguments easier when using the fasthttp framework.
+request arguments easier and also to make it possible
+to automatically create swagger APIs.
 
 The behavior is simillar to how `json.Unmarshal` works, you give it a struct
 with tags that will be used to inform the parser from where to extract

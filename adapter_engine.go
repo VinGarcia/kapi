@@ -25,6 +25,60 @@ type DecodedHandlerFunction struct {
 	contextValues map[string]tagInfo
 }
 
+// Adapt was created to simplify the parsing and validation
+// of the request arguments.
+//
+// The input argument must be a function callback whose first
+// argument is a *fiber.Ctx and the second is a struct
+// where each attribute contains a special Tag describing
+// from where it should be parsed, e.g.:
+//
+//	func MyAdaptedHandler(ctx *fiber.Ctx, args struct{
+//	  PathArgument   int          `path:"my_path_arg"`
+//	  QueryArgument  uint64       `query:"my_query_arg"`
+//	  HeaderArgument string       `header:"my_header_arg"`
+//	  ContextValue   MyCustomType `context:"my_context_value"`
+//	  Body           MyCustomBody `content-type:"application/json"`
+//	}) error {
+//
+//	  // ... handle request ...
+//
+//	  return nil
+//	}
+//
+// Note: all attributes in the input struct must be public or the adapter will panic
+func NewHandlerFactory[CtxT any](newAdapter func(CtxT) RequestAdapter, fn interface{}) func(ctx CtxT) error {
+	fnType := reflect.TypeOf(fn)
+	fnValue := reflect.ValueOf(fn)
+
+	var c CtxT
+
+	// The slow steps that heavily rely on reflection
+	// are done here once during startup in order to affect
+	// as little as possible the performance later on.
+	fnInfo := DecodeHandlerFunction(fnType, []reflect.Type{
+		// These are the types of the arguments we expect the function to receive
+		// before the "args struct" which should always be the last argument.
+		//
+		// If the input function doesn't match this list the adapter will panic at startup.
+		reflect.TypeOf(c),
+	})
+
+	return func(ctx CtxT) error {
+		// This part uses cached information from `fnInfo` and uses
+		// reflection only to fill the struct making it more performatic:
+		inputStructPtr, err := UnmarshalRequestAsStruct(newAdapter(ctx), fnInfo)
+		if err != nil {
+			return err
+		}
+
+		// Here we pass the arguments to the user defined handler function in the order
+		// we expect to receive them, e.g.: `func(ctx *fiber.Ctx, args MyStruct) error`:
+		err, _ = fnValue.Call([]reflect.Value{reflect.ValueOf(ctx), inputStructPtr.Elem()})[0].Interface().(error)
+		return err
+	}
+}
+
 func DecodeHandlerFunction(fnType reflect.Type, expectedArgTypes []reflect.Type) DecodedHandlerFunction {
 	if len(expectedArgTypes) == 0 {
 		log.Fatal("adapter code error: the expected list of args for the handler must not be an empty list!")
@@ -115,6 +169,7 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 
 		inputStruct.Elem().Field(info.Idx).Set(v)
 	}
+
 	for key, info := range funcInfo.headerParams {
 		param := request.GetHeaderParam(key)
 		if param == "" {
@@ -139,6 +194,7 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 
 		inputStruct.Elem().Field(info.Idx).Set(v)
 	}
+
 	for key, info := range funcInfo.queryParams {
 		param := request.GetQueryParam(key)
 		if param == "" {

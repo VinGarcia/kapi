@@ -2,7 +2,7 @@ package kapi
 
 type any = interface{}
 
-// RequestAdapter is the minimum interface required for interacting
+// Request is the minimum interface required for interacting
 // with an input request and return a response.
 //
 // This interface allows different http clients to be used

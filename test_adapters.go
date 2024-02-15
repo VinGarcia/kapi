@@ -1,5 +1,11 @@
 package kapi
 
+import (
+	"testing"
+
+	tt "github.com/vingarcia/kapi/internal/testtools"
+)
+
 /*
 type Foo struct {
 	ID   int    `json:"id"`
@@ -15,8 +21,8 @@ var weight = 10
 
 func BenchmarkAdapter(b *testing.B) {
 	adapted := Adapt(func(ctx *fiber.Ctx, args struct {
-		PathParam   int    `path:"path-param"`
-		HeaderParam string `header:"header-param"`
+		PathParam   int    `path:"pathParam"`
+		HeaderParam string `header:"headerParam"`
 		Body        Foo
 	}) error {
 		pathParam = args.PathParam
@@ -27,12 +33,12 @@ func BenchmarkAdapter(b *testing.B) {
 	})
 
 	notAdapted := func(ctx *fiber.Ctx) (err error) {
-		pathParam, err = strconv.Atoi(ctx.Param("path-param"))
+		pathParam, err = strconv.Atoi(ctx.Param("pathParam"))
 		if err != nil {
 			fmt.Println("deu ruim!")
 			return err
 		}
-		headerParam = string(ctx.Request.Header.Peek("header-param"))
+		headerParam = string(ctx.Request.Header.Peek("headerParam"))
 		if headerParam == "" {
 			fmt.Println("deu ruim!")
 			return fmt.Errorf("deu ruim!")
@@ -47,7 +53,7 @@ func BenchmarkAdapter(b *testing.B) {
 		return nil
 	}
 
-	ctx := buildFakeContext(mockedArgs{
+	ctx := buildFakeContext(MockedArgs{
 		PathParam:   "42",
 		HeaderParam: "fake-header-param",
 		Body:        `{"id":32,"name":"John Doe"}`,
@@ -64,26 +70,35 @@ func BenchmarkAdapter(b *testing.B) {
 		}
 	})
 }
+// */
 
-func AdaptTestSuite(
+type TestRequest struct {
+	PathParam   string
+	HeaderParam string
+	QueryParam  string
+	Body        string
+}
+
+func AdaptTestSuite[CtxT any](
 	t *testing.T,
-	newAdapter func(args []reflect.Value) RequestAdapter,
+	runHandlerWith func(fn any, testRequest TestRequest, ctxValue any) error,
 ) {
 	t.Run("testing happy paths", func(t *testing.T) {
 		var returnValue interface{}
 		tests := []struct {
 			desc          string
-			ctx           RequestAdapter
+			ctxValue      any
+			testRequest   TestRequest
 			fn            interface{}
 			expectedValue interface{}
 		}{
 			{
 				desc: "should parse 1 param from path correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam: "fake-path-param",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					P string `path:"path-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					P string `path:"pathParam"`
 				}) error {
 					returnValue = args.P
 					return nil
@@ -93,11 +108,11 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse 1 param from the header correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					HeaderParam: "fake-header-param",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					P string `header:"header-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					P string `header:"headerParam"`
 				}) error {
 					returnValue = args.P
 					return nil
@@ -107,11 +122,11 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse 1 param from query correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					QueryParam: "fake-query-param",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					P string `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					P string `query:"queryParam"`
 				}) error {
 					returnValue = args.P
 					return nil
@@ -121,11 +136,14 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse the Body correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					Body: `{"id":32,"name":"John Doe"}`,
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					Body Foo
+				},
+				fn: func(ctx CtxT, args struct {
+					Body struct {
+						ID   int    `json:"id"`
+						Name string `json:"name"`
+					}
 				}) error {
 					returnValue = args.Body.Name
 					return nil
@@ -135,11 +153,14 @@ func AdaptTestSuite(
 
 			{
 				desc: "should use the content-type tag correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					Body: `{"id":32,"name":"John Doe"}`,
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					Body Foo `content-type:"application/json"`
+				},
+				fn: func(ctx CtxT, args struct {
+					Body struct {
+						ID   int    `json:"id"`
+						Name string `json:"name"`
+					} `content-type:"application/json"`
 				}) error {
 					returnValue = args.Body.Name
 					return nil
@@ -149,10 +170,10 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse raw bodies when the Body type is []byte",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					Body: `{"id":32,"name":"John Doe"}`,
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
+				},
+				fn: func(ctx CtxT, args struct {
 					Body []byte `content-type:"application/json"`
 				}) error {
 					returnValue = string(args.Body)
@@ -163,23 +184,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an integer correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam int `path:"path-param"`
-					HParam int `header:"header-param"`
-					QParam int `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam int `path:"pathParam"`
+					HParam int `header:"headerParam"`
+					QParam int `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam int `path:"path-param"`
-					HParam int `header:"header-param"`
-					QParam int `query:"query-param"`
+					PParam int `path:"pathParam"`
+					HParam int `header:"headerParam"`
+					QParam int `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -189,23 +210,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int8 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam int8 `path:"path-param"`
-					HParam int8 `header:"header-param"`
-					QParam int8 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam int8 `path:"pathParam"`
+					HParam int8 `header:"headerParam"`
+					QParam int8 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam int8 `path:"path-param"`
-					HParam int8 `header:"header-param"`
-					QParam int8 `query:"query-param"`
+					PParam int8 `path:"pathParam"`
+					HParam int8 `header:"headerParam"`
+					QParam int8 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -215,23 +236,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int16 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam int16 `path:"path-param"`
-					HParam int16 `header:"header-param"`
-					QParam int16 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam int16 `path:"pathParam"`
+					HParam int16 `header:"headerParam"`
+					QParam int16 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam int16 `path:"path-param"`
-					HParam int16 `header:"header-param"`
-					QParam int16 `query:"query-param"`
+					PParam int16 `path:"pathParam"`
+					HParam int16 `header:"headerParam"`
+					QParam int16 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -241,23 +262,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int32 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam int32 `path:"path-param"`
-					HParam int32 `header:"header-param"`
-					QParam int32 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam int32 `path:"pathParam"`
+					HParam int32 `header:"headerParam"`
+					QParam int32 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam int32 `path:"path-param"`
-					HParam int32 `header:"header-param"`
-					QParam int32 `query:"query-param"`
+					PParam int32 `path:"pathParam"`
+					HParam int32 `header:"headerParam"`
+					QParam int32 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -267,23 +288,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int64 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam int64 `path:"path-param"`
-					HParam int64 `header:"header-param"`
-					QParam int64 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam int64 `path:"pathParam"`
+					HParam int64 `header:"headerParam"`
+					QParam int64 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam int64 `path:"path-param"`
-					HParam int64 `header:"header-param"`
-					QParam int64 `query:"query-param"`
+					PParam int64 `path:"pathParam"`
+					HParam int64 `header:"headerParam"`
+					QParam int64 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -293,23 +314,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int64 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam uint8 `path:"path-param"`
-					HParam uint8 `header:"header-param"`
-					QParam uint8 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam uint8 `path:"pathParam"`
+					HParam uint8 `header:"headerParam"`
+					QParam uint8 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam uint8 `path:"path-param"`
-					HParam uint8 `header:"header-param"`
-					QParam uint8 `query:"query-param"`
+					PParam uint8 `path:"pathParam"`
+					HParam uint8 `header:"headerParam"`
+					QParam uint8 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -319,23 +340,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int64 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam uint16 `path:"path-param"`
-					HParam uint16 `header:"header-param"`
-					QParam uint16 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam uint16 `path:"pathParam"`
+					HParam uint16 `header:"headerParam"`
+					QParam uint16 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam uint16 `path:"path-param"`
-					HParam uint16 `header:"header-param"`
-					QParam uint16 `query:"query-param"`
+					PParam uint16 `path:"pathParam"`
+					HParam uint16 `header:"headerParam"`
+					QParam uint16 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -345,23 +366,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int64 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam uint32 `path:"path-param"`
-					HParam uint32 `header:"header-param"`
-					QParam uint32 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam uint32 `path:"pathParam"`
+					HParam uint32 `header:"headerParam"`
+					QParam uint32 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam uint32 `path:"path-param"`
-					HParam uint32 `header:"header-param"`
-					QParam uint32 `query:"query-param"`
+					PParam uint32 `path:"pathParam"`
+					HParam uint32 `header:"headerParam"`
+					QParam uint32 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -371,23 +392,23 @@ func AdaptTestSuite(
 
 			{
 				desc: "should parse an int64 correctly",
-				ctx: buildFakeContext(mockedArgs{
+				testRequest: TestRequest{
 					PathParam:   "42",
 					HeaderParam: "43",
 					QueryParam:  "44",
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					PParam uint64 `path:"path-param"`
-					HParam uint64 `header:"header-param"`
-					QParam uint64 `query:"query-param"`
+				},
+				fn: func(ctx CtxT, args struct {
+					PParam uint64 `path:"pathParam"`
+					HParam uint64 `header:"headerParam"`
+					QParam uint64 `query:"queryParam"`
 				}) error {
 					returnValue = args
 					return nil
 				},
 				expectedValue: struct {
-					PParam uint64 `path:"path-param"`
-					HParam uint64 `header:"header-param"`
-					QParam uint64 `query:"query-param"`
+					PParam uint64 `path:"pathParam"`
+					HParam uint64 `header:"headerParam"`
+					QParam uint64 `query:"queryParam"`
 				}{
 					PParam: 42,
 					HParam: 43,
@@ -396,29 +417,37 @@ func AdaptTestSuite(
 			},
 
 			{
-				desc: "should parse 1 user value correctly",
-				ctx: buildFakeContext(mockedArgs{
-					UserValue: Foo{
-						Name: "foo-as-user-value",
-					},
-				}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					MyUserValue Foo `uservalue:"user-value"`
+				desc:        "should parse 1 user value correctly",
+				testRequest: TestRequest{},
+				ctxValue: struct {
+					ID   int    `json:"id"`
+					Name string `json:"name"`
+				}{
+					Name: "foo-as-user-value",
+				},
+				fn: func(ctx CtxT, args struct {
+					MyUserValue struct {
+						ID   int    `json:"id"`
+						Name string `json:"name"`
+					} `uservalue:"userValue"`
 				}) error {
 					returnValue = args.MyUserValue
 					return nil
 				},
-				expectedValue: Foo{
+				expectedValue: struct {
+					ID   int    `json:"id"`
+					Name string `json:"name"`
+				}{
 					Name: "foo-as-user-value",
 				},
 			},
 
 			{
-				desc: "should ignore optional integers with no errors",
-				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					Header int `header:"header-param,optional"`
-					Query  int `query:"query-param"`
+				desc:        "should ignore optional integers with no errors",
+				testRequest: TestRequest{},
+				fn: func(ctx CtxT, args struct {
+					Header int `header:"headerParam,optional"`
+					Query  int `query:"queryParam"`
 				}) error {
 					returnValue = map[string]int{
 						"header": args.Header,
@@ -433,11 +462,11 @@ func AdaptTestSuite(
 			},
 
 			{
-				desc: "should parse default integers correctly",
-				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					Header int `header:"header-param" default:"43"`
-					Query  int `query:"query-param" default:"44"`
+				desc:        "should parse default integers correctly",
+				testRequest: TestRequest{},
+				fn: func(ctx CtxT, args struct {
+					Header int `header:"headerParam" default:"43"`
+					Query  int `query:"queryParam" default:"44"`
 				}) error {
 					returnValue = map[string]int{
 						"header": args.Header,
@@ -452,11 +481,11 @@ func AdaptTestSuite(
 			},
 
 			{
-				desc: "should parse default string correctly",
-				ctx:  buildFakeContext(mockedArgs{}),
-				fn: func(ctx *fiber.Ctx, args struct {
-					Header string `header:"header-param" default:"43"`
-					Query  string `query:"query-param" default:"44"`
+				desc:        "should parse default string correctly",
+				testRequest: TestRequest{},
+				fn: func(ctx CtxT, args struct {
+					Header string `header:"headerParam" default:"43"`
+					Query  string `query:"queryParam" default:"44"`
 				}) error {
 					returnValue = map[string]string{
 						"header": args.Header,
@@ -473,9 +502,7 @@ func AdaptTestSuite(
 
 		for _, test := range tests {
 			t.Run(test.desc, func(t *testing.T) {
-				ctx := test.ctx
-
-				err := Adapt(test.fn)(ctx)
+				err := runHandlerWith(test.fn, test.testRequest, test.ctxValue)
 				if err != nil {
 					t.Fatalf("unexpected error received: %s", err.Error())
 				}
@@ -485,60 +512,28 @@ func AdaptTestSuite(
 		}
 	})
 
-	t.Run("should report error when path param is empty", func(t *testing.T) {
-		server := httptest.NewServer()
+	/*
+		t.Run("should report error when path param is empty", func(t *testing.T) {
+			server := httptest.NewServer()
 
-		ctx := buildFakeContext(mockedArgs{})
+			ctx := buildRequestContext(MockedArgs{})
 
-		var p interface{}
-		err := Adapt(func(ctx *fiber.Ctx, args struct {
-			P string `path:"path-param"`
-		}) error {
-			p = "reached this line"
-			return nil
-		})(ctx)
+			var p interface{}
+			err := Adapt(func(ctx CtxT, args struct {
+				P string `path:"pathParam"`
+			}) error {
+				p = "reached this line"
+				return nil
+			})(ctx)
 
-		httpErr, ok := err.(*fiber.Error)
-		if !ok || httpErr.Code != http.StatusBadRequest {
-			t.Fatalf("expected MissingRequiredParamError bug got: %T", err)
-		}
+			httpErr, ok := err.(*fiber.Error)
+			if !ok || httpErr.Code != http.StatusBadRequest {
+				t.Fatalf("expected MissingRequiredParamError bug got: %T", err)
+			}
 
-		if p == "reached this line" {
-			t.Fatalf("the callback should not have been executed!")
-		}
-	})
+			if p == "reached this line" {
+				t.Fatalf("the callback should not have been executed!")
+			}
+		})
+	// */
 }
-
-type mockedArgs struct {
-	PathParam   string
-	HeaderParam string
-	QueryParam  string
-	UserValue   interface{}
-	Body        string
-}
-
-func buildFakeContext(args mockedArgs) *fiber.Ctx {
-	ctx := &fiber.Ctx{
-		RequestCtx: &fasthttp.RequestCtx{},
-	}
-	ctx.SetParam("path-param", args.PathParam)
-
-	if args.HeaderParam != "" {
-		ctx.Request.Header.Set("header-param", args.HeaderParam)
-	}
-
-	if args.QueryParam != "" {
-		ctx.Request.URI().QueryArgs().Set("query-param", args.QueryParam)
-	}
-
-	if args.UserValue != nil {
-		ctx.SetUserValue("user-value", args.UserValue)
-	}
-
-	if args.Body != "" {
-		ctx.Request.SetBody([]byte(args.Body))
-	}
-
-	return ctx
-}
-*/
