@@ -277,66 +277,72 @@ func TestUnmarshalRequestAsStruct(t *testing.T) {
 		}
 	})
 
-	t.Run("should report a 400 error when a required path param is empty", func(t *testing.T) {
+	t.Run("should report a 400 error on invalid input", func(t *testing.T) {
 		reached := false
-		err := callAdapted(t, func(ctx *fakeCtx, args struct {
-			P string `path:"path-param"`
-		}) error {
-			reached = true
-			return nil
-		}, fakeAdapter{})
 
-		httpErr, ok := err.(*fakeHTTPError)
-		if !ok {
-			t.Fatalf("expected a *fakeHTTPError, got %T: %v", err, err)
+		tests := []struct {
+			desc    string
+			adapter fakeAdapter
+			fn      interface{}
+		}{
+			{
+				desc:    "required path param is empty",
+				adapter: fakeAdapter{},
+				fn: func(ctx *fakeCtx, args struct {
+					P string `path:"path-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+			},
+			{
+				desc:    "required header param is empty",
+				adapter: fakeAdapter{},
+				fn: func(ctx *fakeCtx, args struct {
+					H string `header:"header-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+			},
+			{
+				desc:    "required query param is empty",
+				adapter: fakeAdapter{},
+				fn: func(ctx *fakeCtx, args struct {
+					Q string `query:"query-param,required"`
+				}) error {
+					reached = true
+					return nil
+				},
+			},
+			{
+				desc:    "body is not valid JSON",
+				adapter: fakeAdapter{body: `not-json`},
+				fn: func(ctx *fakeCtx, args struct {
+					Body engineFoo
+				}) error {
+					reached = true
+					return nil
+				},
+			},
 		}
-		tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
 
-		if reached {
-			t.Fatal("the handler should not have been called")
+		for _, test := range tests {
+			t.Run(test.desc, func(t *testing.T) {
+				reached = false
+				err := callAdapted(t, test.fn, test.adapter)
+
+				httpErr, ok := err.(*fakeHTTPError)
+				if !ok {
+					t.Fatalf("expected a *fakeHTTPError, got %T: %v", err, err)
+				}
+				tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
+
+				if reached {
+					t.Fatal("the handler should not have been called")
+				}
+			})
 		}
-	})
-
-	t.Run("should report a 400 error when a required header param is empty", func(t *testing.T) {
-		err := callAdapted(t, func(ctx *fakeCtx, args struct {
-			H string `header:"header-param"`
-		}) error {
-			return nil
-		}, fakeAdapter{})
-
-		httpErr, ok := err.(*fakeHTTPError)
-		if !ok {
-			t.Fatalf("expected a *fakeHTTPError, got %T: %v", err, err)
-		}
-		tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
-	})
-
-	t.Run("should report a 400 error when a required query param is empty", func(t *testing.T) {
-		err := callAdapted(t, func(ctx *fakeCtx, args struct {
-			Q string `query:"query-param,required"`
-		}) error {
-			return nil
-		}, fakeAdapter{})
-
-		httpErr, ok := err.(*fakeHTTPError)
-		if !ok {
-			t.Fatalf("expected a *fakeHTTPError, got %T: %v", err, err)
-		}
-		tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
-	})
-
-	t.Run("should report a 400 error when the body is not valid JSON", func(t *testing.T) {
-		err := callAdapted(t, func(ctx *fakeCtx, args struct {
-			Body engineFoo
-		}) error {
-			return nil
-		}, fakeAdapter{body: `not-json`})
-
-		httpErr, ok := err.(*fakeHTTPError)
-		if !ok {
-			t.Fatalf("expected a *fakeHTTPError, got %T: %v", err, err)
-		}
-		tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
 	})
 }
 
