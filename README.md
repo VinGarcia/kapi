@@ -31,8 +31,10 @@ A simple usage example is as follows:
   }
 ```
 
-For a working example see the file `cmd/main.go`, to run this example (it is a simple server)
-use `make run` and to test the api you can run the following command:
+For a working example see the file `adapters/fasthttp-routingV2/example/main.go`
+(the `adapters/fiberV2/example/main.go` example is equivalent), to run this
+example (it is a simple server) use `make run` and to test the api you can run
+the following command:
 
 ```bash
 $ curl -XPOST localhost:8765/adapted/42?qparam=barbar \
@@ -47,7 +49,7 @@ or simply:
 make request
 ```
 
-> Note: The `cmd/main.go` example contains two routes doing the same thing,
+> Note: The example above contains two routes doing the same thing,
 > one using the library and the other not using it, you can test the
 > not adapted one replacing `adapted` by `not-adapted` on the example below.
 
@@ -62,7 +64,9 @@ This library uses reflection which brings performance concerns.
 The use of reflection was made with caution using it only when necessary
 and avoiding it on the critical sections of the code.
 
-This granted a performance that isn't terrible:
+This granted a performance that isn't terrible, as shown by this historical
+benchmark result (the `BenchmarkAdapter` it came from is not currently part of
+this repository's test suite):
 
 ```
 go test -bench=. -benchtime=15s
