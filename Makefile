@@ -5,8 +5,8 @@ path=./...
 
 GOBIN=$(shell go env GOPATH)/bin
 
-FILEPATH=fasthttp-routing/v2/example/main.go
-FILEPATH=fiber/v2/example/main.go
+FILEPATH=adapters/fasthttp-routingV2/example/main.go
+FILEPATH=adapters/fiberV2/example/main.go
 run:
 	go run $(FILEPATH)
 

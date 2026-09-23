@@ -18,5 +18,10 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+
       - name: go test
         run: go test -race ./...
