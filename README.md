@@ -57,6 +57,51 @@ For more technical information on how to use it, please read [the Docs][docs]
 
 [docs]: https://pkg.go.dev/github.com/vingarcia/kapi
 
+## Architecture
+
+kapi follows a ports-and-adapters (hexagonal) design so a single request-parsing
+engine can drive any HTTP framework. The roles and their allowed import directions:
+
+- **Core engine — the root `kapi` package.** The framework-agnostic reflection logic
+  that maps an HTTP request onto a handler's argument struct: `DecodeHandlerFunction`
+  (inspects the struct's tags once at startup), `UnmarshalRequestAsStruct` (fills the
+  struct from the request on each call), and the `BuildJSONResponse` helper. The parsing
+  engine reaches a request only through the `RequestAdapter` port, so it does not depend
+  on any concrete HTTP framework. (The one exception is `BuildJSONResponse`, which still
+  imports `fasthttp-routing` directly and is not yet backend-agnostic.)
+- **Port — `RequestAdapter` (in `contracts.go`).** The interface every backend must
+  implement: `GetBody`, `GetPathParam`, `GetHeaderParam`, `GetQueryParam`,
+  `GetContextValue`, `SetContextValue`, and `NewHTTPError`. This interface is the seam
+  that inverts the dependency — the core depends on it, not on a framework.
+- **Adapters — `adapters/*`.** One package per supported backend
+  (`fasthttp-routingV2`, `fiberV2`). Each exposes an `Adapter` type that implements
+  `RequestAdapter` over that framework's request context, plus an `Adapt(fn)` function
+  that wraps a tagged handler into a native handler for that framework. Each also ships
+  a runnable `example/main.go` that wires a server. Adapters import the core and their
+  own framework; the core never imports an adapter.
+- **Test helpers — `internal/testtools`.** Assertion, JSON, time and panic helpers
+  shared by the test suites.
+
+Dependencies point inward: adapters depend on the core, and for request parsing the core
+depends only on the `RequestAdapter` port, not on any backend. Adding support for a new
+framework means writing one adapter, with no change to the parsing engine.
+
+```
+        kapi (core engine)
+        DecodeHandlerFunction / UnmarshalRequestAsStruct
+                 │
+                 │ uses
+                 ▼
+        RequestAdapter (port interface, contracts.go)
+                 ▲
+                 │ implements
+        ┌────────┴─────────┐
+adapters/fasthttp-      adapters/fiberV2
+   routingV2
+
+(each adapter also imports the core; the core imports no adapter)
+```
+
 ## Performance
 
 This library uses reflection which brings performance concerns.
