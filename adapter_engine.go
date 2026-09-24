@@ -2,6 +2,7 @@ package kapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -97,25 +98,27 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 	}
 
 	for key, info := range funcInfo.pathParams {
+		const source = "path param"
+
 		param := request.GetPathParam(key)
 		if param == "" {
 			// Path params are always required, that's why we won't
 			// check the Default and Required fields here
 			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-				"path param '%s' is empty", key,
+				"%s '%s' is empty", source, key,
 			))
 		}
 
-		v, err := decodeType(info.Kind, param)
+		v, err := decodeType(info.Kind, source, key, param)
 		if err != nil {
-			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-				"could not convert path param to %s: %s", reflect.Int, err.Error(),
-			))
+			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
 		inputStruct.Elem().Field(info.Idx).Set(v)
 	}
 	for key, info := range funcInfo.headerParams {
+		const source = "header param"
+
 		param := request.GetHeaderParam(key)
 		if param == "" {
 			param = info.Default
@@ -123,23 +126,23 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 		if param == "" {
 			if info.Required {
 				return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"required header param '%s' is empty", key,
+					"required %s '%s' is empty", source, key,
 				))
 			}
 
 			continue
 		}
 
-		v, err := decodeType(info.Kind, param)
+		v, err := decodeType(info.Kind, source, key, param)
 		if err != nil {
-			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-				"could not convert path param to %s: %s", reflect.Int, err.Error(),
-			))
+			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
 		inputStruct.Elem().Field(info.Idx).Set(v)
 	}
 	for key, info := range funcInfo.queryParams {
+		const source = "query param"
+
 		param := request.GetQueryParam(key)
 		if param == "" {
 			param = info.Default
@@ -147,18 +150,16 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 		if param == "" {
 			if info.Required {
 				return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-					"required query param '%s' is empty", key,
+					"required %s '%s' is empty", source, key,
 				))
 			}
 
 			continue
 		}
 
-		v, err := decodeType(info.Kind, param)
+		v, err := decodeType(info.Kind, source, key, param)
 		if err != nil {
-			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, fmt.Sprintf(
-				"could not convert path param to %s: %s", reflect.Int, err.Error(),
-			))
+			return reflect.Value{}, request.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
 		inputStruct.Elem().Field(info.Idx).Set(v)
@@ -186,42 +187,119 @@ func UnmarshalRequestAsStruct(request RequestAdapter, funcInfo DecodedHandlerFun
 	return inputStruct, nil
 }
 
-func decodeType(kind reflect.Kind, v string) (reflect.Value, error) {
+// decodeType converts the raw string value `v` received from `source`
+// (e.g. "path param", "header param", "query param") under the name
+// `name` into a reflect.Value of the requested `kind`.
+//
+// On failure it returns a *decodeError instead of the raw strconv
+// error, so callers get a message that is safe to show a user as-is.
+func decodeType(kind reflect.Kind, source string, name string, v string) (reflect.Value, error) {
 	switch kind {
 	case reflect.Int:
 		i, err := strconv.Atoi(v)
-		return reflect.ValueOf(i), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(i), nil
 	case reflect.Int8:
 		i, err := strconv.ParseInt(v, 10, 8)
-		return reflect.ValueOf(int8(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(int8(i)), nil
 	case reflect.Int16:
 		i, err := strconv.ParseInt(v, 10, 16)
-		return reflect.ValueOf(int16(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(int16(i)), nil
 	case reflect.Int32:
 		i, err := strconv.ParseInt(v, 10, 32)
-		return reflect.ValueOf(int32(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(int32(i)), nil
 	case reflect.Int64:
 		i, err := strconv.ParseInt(v, 10, 64)
-		return reflect.ValueOf(int64(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(i), nil
 
 	case reflect.Uint:
-		i, err := strconv.Atoi(v)
-		return reflect.ValueOf(uint(i)), err
+		// Parsed at strconv.IntSize (the platform's uint width, rather
+		// than strconv.Atoi+conversion) so a negative input is rejected
+		// instead of silently wrapping into a huge positive number, and
+		// so a value that overflows a 32-bit platform's uint is caught
+		// here instead of being truncated by the uint(i) conversion below.
+		i, err := strconv.ParseUint(v, 10, strconv.IntSize)
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(uint(i)), nil
 	case reflect.Uint8:
 		i, err := strconv.ParseUint(v, 10, 8)
-		return reflect.ValueOf(uint8(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(uint8(i)), nil
 	case reflect.Uint16:
 		i, err := strconv.ParseUint(v, 10, 16)
-		return reflect.ValueOf(uint16(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(uint16(i)), nil
 	case reflect.Uint32:
 		i, err := strconv.ParseUint(v, 10, 32)
-		return reflect.ValueOf(uint32(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(uint32(i)), nil
 	case reflect.Uint64:
 		i, err := strconv.ParseUint(v, 10, 64)
-		return reflect.ValueOf(uint64(i)), err
+		if err != nil {
+			return reflect.Value{}, newDecodeError(source, name, kind, v, err)
+		}
+		return reflect.ValueOf(i), nil
 	}
 
 	return reflect.ValueOf(v), nil
+}
+
+// decodeError is returned by decodeType when a request value can't be
+// converted to a field's target type. Error() renders a clean message
+// naming the source, param, expected type and offending value — never
+// the raw strconv wording (e.g. "invalid syntax") — for the HTTP
+// response body. Unwrap() keeps the original strconv error reachable
+// via errors.Is/errors.As for tests and any future caller that needs
+// to branch on the underlying failure instead of the rendered string.
+type decodeError struct {
+	msg   string
+	cause error
+}
+
+func (e *decodeError) Error() string {
+	return e.msg
+}
+
+func (e *decodeError) Unwrap() error {
+	return e.cause
+}
+
+func newDecodeError(source string, name string, kind reflect.Kind, value string, cause error) error {
+	explanation := fmt.Sprintf("must be a valid %s", kind)
+
+	var numErr *strconv.NumError
+	if errors.As(cause, &numErr) && errors.Is(numErr.Err, strconv.ErrRange) {
+		explanation = fmt.Sprintf("is out of range for type %s", kind)
+	}
+
+	return &decodeError{
+		msg: fmt.Sprintf(
+			"%s %q %s, got %q", source, name, explanation, value,
+		),
+		cause: cause,
+	}
 }
 
 type tagInfo struct {

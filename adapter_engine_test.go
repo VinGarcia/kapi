@@ -1,8 +1,11 @@
 package kapi
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	tt "github.com/vingarcia/kapi/internal/testtools"
@@ -281,9 +284,10 @@ func TestUnmarshalRequestAsStruct(t *testing.T) {
 		reached := false
 
 		tests := []struct {
-			desc    string
-			adapter fakeAdapter
-			fn      interface{}
+			desc           string
+			adapter        fakeAdapter
+			fn             interface{}
+			expectContains []string
 		}{
 			{
 				desc:    "required path param is empty",
@@ -325,6 +329,96 @@ func TestUnmarshalRequestAsStruct(t *testing.T) {
 					return nil
 				},
 			},
+			{
+				desc:    "path int param has invalid syntax",
+				adapter: fakeAdapter{pathParams: map[string]string{"path-param": "f1"}},
+				fn: func(ctx *fakeCtx, args struct {
+					P int `path:"path-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				// Names the source, the param, the expected type and the
+				// offending value, and never leaks strconv's own wording.
+				expectContains: []string{"path param", "path-param", "int", "f1"},
+			},
+			{
+				desc:    "path int param overflows",
+				adapter: fakeAdapter{pathParams: map[string]string{"path-param": "12341234123412341234"}},
+				fn: func(ctx *fakeCtx, args struct {
+					P int `path:"path-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"path param", "path-param", "int", "12341234123412341234", "out of range"},
+			},
+			{
+				desc:    "header int8 param overflows",
+				adapter: fakeAdapter{headerParams: map[string]string{"header-param": "200"}},
+				fn: func(ctx *fakeCtx, args struct {
+					H int8 `header:"header-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"header param", "header-param", "int8", "200", "out of range"},
+			},
+			{
+				desc:    "header int8 param has invalid syntax",
+				adapter: fakeAdapter{headerParams: map[string]string{"header-param": "not-a-number"}},
+				fn: func(ctx *fakeCtx, args struct {
+					H int8 `header:"header-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"header param", "header-param", "int8", "not-a-number"},
+			},
+			{
+				desc:    "query uint32 param has invalid syntax",
+				adapter: fakeAdapter{queryParams: map[string]string{"query-param": "-1"}},
+				fn: func(ctx *fakeCtx, args struct {
+					Q uint32 `query:"query-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"query param", "query-param", "uint32", "-1"},
+			},
+			{
+				desc:    "query uint32 param overflows",
+				adapter: fakeAdapter{queryParams: map[string]string{"query-param": "4294967296"}},
+				fn: func(ctx *fakeCtx, args struct {
+					Q uint32 `query:"query-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"query param", "query-param", "uint32", "4294967296", "out of range"},
+			},
+			{
+				desc:    "query uint param rejects a negative value instead of wrapping",
+				adapter: fakeAdapter{queryParams: map[string]string{"query-param": "-5"}},
+				fn: func(ctx *fakeCtx, args struct {
+					Q uint `query:"query-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"query param", "query-param", "uint", "-5"},
+			},
+			{
+				desc:    "path int64 param overflows",
+				adapter: fakeAdapter{pathParams: map[string]string{"path-param": "99999999999999999999"}},
+				fn: func(ctx *fakeCtx, args struct {
+					P int64 `path:"path-param"`
+				}) error {
+					reached = true
+					return nil
+				},
+				expectContains: []string{"path param", "path-param", "int64", "99999999999999999999", "out of range"},
+			},
 		}
 
 		for _, test := range tests {
@@ -338,12 +432,42 @@ func TestUnmarshalRequestAsStruct(t *testing.T) {
 				}
 				tt.AssertEqual(t, http.StatusBadRequest, httpErr.StatusCode)
 
+				if len(test.expectContains) > 0 {
+					tt.AssertErrContains(t, httpErr, test.expectContains...)
+
+					// The internal strconv wording must never leak into the
+					// user-facing message.
+					for _, leaked := range []string{"strconv.Atoi", "strconv.ParseInt", "strconv.ParseUint", "invalid syntax", "value out of range"} {
+						if strings.Contains(httpErr.Msg, leaked) {
+							t.Fatalf("error message leaks internal strconv wording (%q): %s", leaked, httpErr.Msg)
+						}
+					}
+				}
+
 				if reached {
 					t.Fatal("the handler should not have been called")
 				}
 			})
 		}
 	})
+}
+
+// TestDecodeType_WrapsUnderlyingError proves the *decodeError returned
+// by decodeType on a parse failure keeps the original *strconv.NumError
+// reachable via errors.As, so a caller working with decodeType directly
+// (rather than through the stringified HTTP error) can still branch on
+// the underlying failure programmatically.
+func TestDecodeType_WrapsUnderlyingError(t *testing.T) {
+	_, err := decodeType(reflect.Int, "path param", "my-param", "not-a-number")
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+
+	var numErr *strconv.NumError
+	if !errors.As(err, &numErr) {
+		t.Fatalf("expected errors.As to find a *strconv.NumError in the chain, got: %#v", err)
+	}
+	tt.AssertEqual(t, "not-a-number", numErr.Num)
 }
 
 func TestDecodeHandlerFunction(t *testing.T) {
